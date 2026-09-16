@@ -3,3 +3,9 @@ allowBuilds:
   protobufjs: true
   sharp: false
   unrs-resolver: false
+
+# jwks-rsa (dependencia de firebase-admin/auth) usa jose@6, que es ESM-only
+# y rompe con ERR_REQUIRE_ESM en las funciones serverless de Vercel. jose@4
+# sí trae un build CJS real.
+overrides:
+  jose: ^4.15.9

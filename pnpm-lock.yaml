@@ -162,6 +162,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  jose: ^4.15.9
+
 importers:
 
   .:
@@ -2994,8 +2997,8 @@ packages:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
 
-  jose@6.2.12:
-    resolution: {integrity: sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==}
+  jose@4.15.9:
+    resolution: {integrity: sha512-1vUQX+IdDMVPj4k8kOxgUqlcK518yluMuGZwqlr44FS1ppZB/5GWh4rZG89erpOBOJjU/OBsnCVFfapsRz6nEA==}
 
   jpeg-js@0.1.2:
     resolution: {integrity: sha512-CiRVjMKBUp6VYtGwzRjrdnro41yMwKGOWdP9ATXqmixdz2n7KHNwdqthTYSSbOKj/Ha79Gct1sA8ZQpse55TYA==}
@@ -5344,7 +5347,7 @@ snapshots:
       express: 5.2.1(supports-color@7.2.0)
       express-rate-limit: 8.7.0(express@5.2.1(supports-color@7.2.0))(supports-color@7.2.0)
       hono: 4.13.8
-      jose: 6.2.12
+      jose: 4.15.9
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
@@ -7518,7 +7521,7 @@ snapshots:
 
   jiti@2.7.0: {}
 
-  jose@6.2.12: {}
+  jose@4.15.9: {}
 
   jpeg-js@0.1.2: {}
 
@@ -7605,7 +7608,7 @@ snapshots:
     dependencies:
       '@types/jsonwebtoken': 9.0.10
       debug: 4.4.3(supports-color@7.2.0)
-      jose: 6.2.12
+      jose: 4.15.9
       limiter: 1.1.5
       lru-cache: 11.5.2
       lru-memoizer: 3.0.0

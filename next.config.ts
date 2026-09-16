@@ -6,10 +6,10 @@ const nextConfig: NextConfig = {
   // Next.js 16 defaults to Turbopack; use `pnpm dev/build` (--webpack) until
   // migrating to @serwist/turbopack. See https://serwist.pages.dev/docs/next/turbo
 
-  // firebase-admin (vía jwks-rsa -> jose, que es ESM-only) rompe si Next.js
-  // lo empaqueta con webpack para las funciones serverless. Dejarlo como
-  // dependencia nativa de node_modules en runtime evita el
-  // "ERR_REQUIRE_ESM".
+  // Recomendado por Firebase para el Admin SDK en Next.js: evita que
+  // webpack intente procesar sus módulos nativos/condicionales. El
+  // ERR_REQUIRE_ESM real (jwks-rsa -> jose@6, ESM-only) se resuelve fijando
+  // `jose` a la v4 en pnpm-workspace.yaml (overrides), no aquí.
   serverExternalPackages: ["firebase-admin"],
 };
 
