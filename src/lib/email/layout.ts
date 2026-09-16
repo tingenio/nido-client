@@ -1,7 +1,5 @@
 import "server-only";
 
-import { EMAIL_LOGO_CID } from "./logo";
-
 /** Colores de marca Nido para correos (hex, compatibles con clientes de email). */
 export const EMAIL_COLORS = {
   background: "#FAF9F7",
@@ -28,7 +26,7 @@ const ACCENT_STYLES: Record<EmailAccent, { badgeBg: string; badgeColor: string; 
   red: { badgeBg: EMAIL_COLORS.redBg, badgeColor: EMAIL_COLORS.red, buttonBg: EMAIL_COLORS.red },
 };
 
-/** URL base de la app para CTAs. Requiere NEXT_PUBLIC_APP_URL en producción. */
+/** URL base de la app para logo y CTAs. Requiere NEXT_PUBLIC_APP_URL en producción. */
 export function getAppUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
   if (explicit) return explicit;
@@ -46,7 +44,8 @@ function escapeHtml(value: string): string {
 }
 
 export function emailLogo(): string {
-  return `<img src="cid:${EMAIL_LOGO_CID}" alt="Nido" width="120" height="29" style="display:block;border:0;outline:none;" />`;
+  const src = `${getAppUrl()}/brand/logo-email.png`;
+  return `<img src="${src}" alt="Nido" width="120" height="29" style="display:block;border:0;outline:none;" />`;
 }
 
 export function emailBadge(label: string, accent: EmailAccent): string {

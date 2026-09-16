@@ -2,7 +2,6 @@ import "server-only";
 
 import { SendEmailCommand } from "@aws-sdk/client-sesv2";
 
-import { getEmailLogoAttachment } from "./logo";
 import { getSesClient, getSesFromAddress } from "./ses";
 
 /**
@@ -23,7 +22,6 @@ export async function sendEmail(input: { to: string | string[]; subject: string;
           Simple: {
             Subject: { Data: input.subject, Charset: "UTF-8" },
             Body: { Html: { Data: input.html, Charset: "UTF-8" } },
-            Attachments: [getEmailLogoAttachment()],
           },
         },
       }),
