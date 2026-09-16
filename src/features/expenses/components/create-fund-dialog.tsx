@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createFund } from "@/features/expenses/actions";
@@ -27,7 +28,8 @@ type CreateFundDialogProps = {
 export function CreateFundDialog({ open, onOpenChange }: CreateFundDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState("");
-  const [initialBalance, setInitialBalance] = useState(0);
+  const [initialBalance, setInitialBalance] = useState<number | null>(null);
+  const [targetAmount, setTargetAmount] = useState<number | null>(null);
 
   async function handleSubmit() {
     if (!name.trim()) {
@@ -37,10 +39,16 @@ export function CreateFundDialog({ open, onOpenChange }: CreateFundDialogProps) 
     setSubmitting(true);
     try {
       const idToken = await getIdToken();
-      await createFund({ idToken, name: name.trim(), initialBalance });
+      await createFund({
+        idToken,
+        name: name.trim(),
+        initialBalance: initialBalance ?? 0,
+        targetAmount: targetAmount ?? undefined,
+      });
       toast.success("Fondo creado");
       setName("");
-      setInitialBalance(0);
+      setInitialBalance(null);
+      setTargetAmount(null);
       onOpenChange(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo crear el fondo");
@@ -64,13 +72,22 @@ export function CreateFundDialog({ open, onOpenChange }: CreateFundDialogProps) 
             </div>
             <div className="space-y-2">
               <Label htmlFor="fund-balance">Saldo inicial</Label>
-              <Input
+              <CurrencyInput
                 id="fund-balance"
-                type="number"
-                min={0}
                 value={initialBalance}
-                onChange={(e) => setInitialBalance(Number(e.target.value))}
+                onValueChange={setInitialBalance}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fund-target">Meta de ahorro</Label>
+              <CurrencyInput
+                id="fund-target"
+                value={targetAmount}
+                onValueChange={setTargetAmount}
+              />
+              <p className="text-muted-foreground text-xs">
+                Opcional. Cuánto quieres acumular en este fondo.
+              </p>
             </div>
           </div>
         </DialogBody>

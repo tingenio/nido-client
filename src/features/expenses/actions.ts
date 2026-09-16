@@ -10,17 +10,29 @@ function household(householdId: string) {
   return adminDb().collection("households").doc(householdId);
 }
 
-export async function createFund(input: { idToken: string; name: string; initialBalance?: number }) {
+export async function createFund(input: {
+  idToken: string;
+  name: string;
+  initialBalance?: number;
+  targetAmount?: number;
+}) {
   const requester = await requireAppUser(input.idToken);
   requireAdmin(requester);
 
   const fundRef = household(requester.householdId).collection("funds").doc();
   const initialBalance = input.initialBalance ?? 0;
 
+  if (input.targetAmount != null && input.targetAmount <= 0) {
+    throw new AuthError("La meta debe ser mayor a 0.");
+  }
+
   await adminDb().runTransaction(async (tx) => {
     tx.set(fundRef, {
       name: input.name,
       balance: initialBalance,
+      ...(input.targetAmount != null && input.targetAmount > 0
+        ? { targetAmount: input.targetAmount }
+        : {}),
       createdAt: FieldValue.serverTimestamp(),
     });
     if (initialBalance > 0) {
@@ -35,6 +47,28 @@ export async function createFund(input: { idToken: string; name: string; initial
   });
 
   return { fundId: fundRef.id };
+}
+
+export async function updateFundTarget(input: {
+  idToken: string;
+  fundId: string;
+  targetAmount: number | null;
+}) {
+  const requester = await requireAppUser(input.idToken);
+  requireAdmin(requester);
+
+  if (input.targetAmount != null && input.targetAmount <= 0) {
+    throw new AuthError("La meta debe ser mayor a 0.");
+  }
+
+  const fundRef = household(requester.householdId).collection("funds").doc(input.fundId);
+  const fundSnap = await fundRef.get();
+  if (!fundSnap.exists) throw new AuthError("El fondo ya no existe.");
+
+  await fundRef.update({
+    targetAmount:
+      input.targetAmount == null ? FieldValue.delete() : input.targetAmount,
+  });
 }
 
 export async function addFundIncome(input: {
@@ -118,4 +152,54 @@ export async function createExpense(input: {
   });
 
   return { expenseId: expenseRef.id };
+}
+
+function billPaymentsRef(householdId: string) {
+  return household(householdId).collection("billPayments");
+}
+
+export async function deleteExpense(input: { idToken: string; expenseId: string }) {
+  const requester = await requireAppUser(input.idToken);
+  requireNotExternal(requester);
+
+  const expenseRef = household(requester.householdId).collection("expenses").doc(input.expenseId);
+  const paymentsCol = billPaymentsRef(requester.householdId);
+
+  await adminDb().runTransaction(async (tx) => {
+    const expenseSnap = await tx.get(expenseRef);
+    if (!expenseSnap.exists) throw new AuthError("El gasto ya no existe.");
+
+    const expense = expenseSnap.data()!;
+    const fundId = expense.fundId as string | undefined;
+
+    if (fundId) {
+      const fundRef = household(requester.householdId).collection("funds").doc(fundId);
+      const fundSnap = await tx.get(fundRef);
+      if (fundSnap.exists) {
+        tx.update(fundRef, { balance: FieldValue.increment(expense.amount as number) });
+        tx.set(fundRef.collection("movements").doc(), {
+          type: "income",
+          amount: expense.amount,
+          description: `Reversión · ${expense.category}`,
+          createdBy: requester.id,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    const linkedPayments = await tx.get(
+      paymentsCol.where("expenseId", "==", input.expenseId).limit(1),
+    );
+    if (!linkedPayments.empty) {
+      const paymentRef = linkedPayments.docs[0]!.ref;
+      tx.update(paymentRef, {
+        status: "pending",
+        paidAt: FieldValue.delete(),
+        paidBy: FieldValue.delete(),
+        expenseId: FieldValue.delete(),
+      });
+    }
+
+    tx.delete(expenseRef);
+  });
 }

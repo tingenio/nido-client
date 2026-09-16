@@ -7,11 +7,8 @@ import { AuthError, requireAdmin, requireAppUser } from "@/lib/auth/server";
 import type { AppUser, UserRole } from "@/types";
 
 /**
- * Se llama una única vez justo después del registro (sign-up) en Firebase
- * Auth. Si el email tiene una invitación pendiente, el usuario se une a ese
- * hogar con el rol invitado; si no, se convierte en el admin fundador de un
- * hogar nuevo. Es idempotente: si el perfil ya existe, simplemente lo
- * devuelve.
+ * Provisión legacy para invitaciones pendientes creadas antes del registro
+ * restringido. Idempotente: si el perfil ya existe, simplemente lo devuelve.
  */
 export async function provisionUser(input: {
   idToken: string;
@@ -61,27 +58,9 @@ export async function provisionUser(input: {
     return { householdId, role };
   }
 
-  // Sin invitación: funda un hogar nuevo como admin.
-  const householdRef = db.collection("households").doc();
-  const newUser: Omit<AppUser, "id"> = {
-    householdId: householdRef.id,
-    name: input.name,
-    email,
-    role: "admin",
-    points: 0,
-    createdAt: FieldValue.serverTimestamp() as unknown as AppUser["createdAt"],
-  };
-
-  await db.batch()
-    .set(householdRef, {
-      name: `Hogar de ${input.name}`,
-      ownerId: uid,
-      createdAt: FieldValue.serverTimestamp(),
-    })
-    .set(userRef, newUser)
-    .commit();
-
-  return { householdId: newUser.householdId, role: newUser.role };
+  throw new AuthError(
+    "Tu cuenta no tiene acceso. Contacta al administrador de tu hogar.",
+  );
 }
 
 const MAX_PHOTO_DATA_URL_LENGTH = 220_000;
@@ -161,24 +140,56 @@ export async function updateProfile(input: {
   await adminAuth().updateUser(user.id, authUpdates);
 }
 
-export async function inviteMember(input: {
+const VALID_ROLES: UserRole[] = ["admin", "member", "external"];
+
+export async function createMember(input: {
   idToken: string;
   email: string;
+  name: string;
   role: UserRole;
+  password: string;
 }) {
   const requester = await requireAppUser(input.idToken);
   requireAdmin(requester);
 
   const email = input.email.trim().toLowerCase();
-  await adminDb()
-    .collection("households")
-    .doc(requester.householdId)
-    .collection("invitations")
-    .add({
+  const name = input.name.trim();
+  const password = input.password;
+
+  if (!email) throw new AuthError("Ingresa un email válido.");
+  if (name.length < 2) throw new AuthError("El nombre debe tener al menos 2 caracteres.");
+  if (password.length < 6) throw new AuthError("La contraseña debe tener al menos 6 caracteres.");
+  if (!VALID_ROLES.includes(input.role)) throw new AuthError("Rol inválido.");
+
+  const existingAuth = await adminAuth()
+    .getUserByEmail(email)
+    .catch((error: { code?: string }) => {
+      if (error.code === "auth/user-not-found") return null;
+      throw error;
+    });
+  if (existingAuth) {
+    throw new AuthError("Ya existe una cuenta con ese email.");
+  }
+
+  const authUser = await adminAuth().createUser({
+    email,
+    password,
+    displayName: name,
+  });
+
+  try {
+    const newUser: Omit<AppUser, "id"> = {
+      householdId: requester.householdId,
+      name,
       email,
       role: input.role,
-      invitedBy: requester.id,
-      status: "pending",
-      createdAt: FieldValue.serverTimestamp(),
-    });
+      points: 0,
+      createdAt: FieldValue.serverTimestamp() as unknown as AppUser["createdAt"],
+    };
+
+    await adminDb().collection("users").doc(authUser.uid).set(newUser);
+  } catch (error) {
+    await adminAuth().deleteUser(authUser.uid).catch(() => undefined);
+    throw error;
+  }
 }

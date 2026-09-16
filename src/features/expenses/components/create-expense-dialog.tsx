@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -28,6 +29,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createExpense } from "@/features/expenses/actions";
 import { useFunds } from "@/features/expenses/hooks/use-funds";
 import { getIdToken } from "@/lib/auth/get-id-token";
+import { formatCurrencyWithSymbol } from "@/lib/format/currency";
 import { EXPENSE_FREQUENCY_LABELS, resolveLabel } from "@/lib/labels";
 import type { ExpenseFrequency, ExpenseType } from "@/types";
 
@@ -47,7 +49,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
   const { funds } = useFunds();
   const [submitting, setSubmitting] = useState(false);
 
-  const [amount, setAmount] = useState(0);
+  const [amount, setAmount] = useState<number | null>(null);
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -56,7 +58,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
   const [fundId, setFundId] = useState<string>(NO_FUND);
 
   function reset() {
-    setAmount(0);
+    setAmount(null);
     setCategory("");
     setDescription("");
     setDate(format(new Date(), "yyyy-MM-dd"));
@@ -66,7 +68,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
   }
 
   async function handleSubmit() {
-    if (amount <= 0 || !category.trim()) {
+    if (!amount || amount <= 0 || !category.trim()) {
       toast.error("Completa el monto y la categoría");
       return;
     }
@@ -107,12 +109,10 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
           <div className="space-y-3">
           <div className="space-y-2">
             <Label htmlFor="expense-amount">Monto</Label>
-            <Input
+            <CurrencyInput
               id="expense-amount"
-              type="number"
-              min={0}
               value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
+              onValueChange={setAmount}
             />
           </div>
           <div className="space-y-2">
@@ -181,7 +181,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                     : (() => {
                         const fund = funds.find((f) => f.id === fundId);
                         return fund
-                          ? `${fund.name} · $${fund.balance.toLocaleString("es")}`
+                          ? `${fund.name} · ${formatCurrencyWithSymbol(fund.balance)}`
                           : undefined;
                       })()}
                 </SelectValue>
@@ -190,7 +190,7 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
                 <SelectItem value={NO_FUND}>Gasto general (sin fondo)</SelectItem>
                 {funds.map((fund) => (
                   <SelectItem key={fund.id} value={fund.id}>
-                    {fund.name} · ${fund.balance.toLocaleString("es")}
+                    {fund.name} · {formatCurrencyWithSymbol(fund.balance)}
                   </SelectItem>
                 ))}
               </SelectContent>

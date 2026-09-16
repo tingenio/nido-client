@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, MessageSquare } from "lucide-react";
+import { Calendar, MessageSquare, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -11,11 +11,14 @@ import { DetailDialog } from "@/components/ui/detail-dialog";
 import { UserLabel } from "@/components/ui/user-avatar";
 import {
   completeOccurrence,
+  deleteOccurrence,
   rejectOccurrence,
   toggleChecklistItem,
   verifyOccurrence,
 } from "@/features/tasks/actions";
+import { DeleteTaskDialog } from "@/features/tasks/components/delete-task-dialog";
 import { RejectTaskDialog } from "@/features/tasks/components/reject-task-dialog";
+import { useTaskMeta } from "@/features/tasks/hooks/use-task-meta";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { getIdToken } from "@/lib/auth/get-id-token";
 import { cn } from "@/lib/utils";
@@ -56,6 +59,8 @@ export function TaskOccurrenceDetailDialog({
   const { appUser } = useAuth();
   const [busy, setBusy] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const { task } = useTaskMeta(occurrence.taskId, open);
 
   if (!appUser) return null;
 
@@ -76,6 +81,11 @@ export function TaskOccurrenceDetailDialog({
     occurrence.status === "completed" &&
     appUser.role !== "external" &&
     occurrence.completedBy !== appUser.id;
+
+  const canDelete =
+    appUser.role !== "external" &&
+    occurrence.status !== "completed" &&
+    (appUser.role === "admin" || task?.createdBy === appUser.id);
 
   async function handleToggleChecklist(itemId: string, checked: boolean) {
     setBusy(true);
@@ -129,8 +139,35 @@ export function TaskOccurrenceDetailDialog({
     }
   }
 
+  async function handleDelete(mode: "occurrence" | "series") {
+    setBusy(true);
+    try {
+      const idToken = await getIdToken();
+      await deleteOccurrence({ idToken, occurrenceId: occurrence.id, mode });
+      const verified = occurrence.status === "verified";
+      const points = occurrence.pointsAwarded ?? occurrence.points;
+      if (mode === "series") {
+        toast.success(
+          verified
+            ? `Tarea eliminada · ya no se repetirá · se restaron ${points} pts`
+            : "Tarea eliminada · ya no se repetirá",
+        );
+      } else if (verified) {
+        toast.success(`Tarea eliminada · se restaron ${points} pts`);
+      } else {
+        toast.success("Tarea eliminada");
+      }
+      setDeleteOpen(false);
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo eliminar");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const footer =
-    canComplete || canReview ? (
+    canComplete || canReview || canDelete ? (
       <>
         {canComplete && (
           <Button className="w-full" disabled={busy || !allChecked} onClick={handleComplete}>
@@ -151,6 +188,17 @@ export function TaskOccurrenceDetailDialog({
               Devolver
             </Button>
           </>
+        )}
+        {canDelete && (
+          <Button
+            variant="destructive"
+            className="w-full"
+            disabled={busy}
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="size-4" />
+            Eliminar tarea
+          </Button>
         )}
       </>
     ) : undefined;
@@ -244,6 +292,16 @@ export function TaskOccurrenceDetailDialog({
         onOpenChange={setRejectOpen}
         onConfirm={handleReject}
         submitting={busy}
+      />
+
+      <DeleteTaskDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        occurrence={occurrence}
+        taskType={task?.type ?? null}
+        assigneeName={assignee?.name}
+        loading={busy}
+        onConfirm={handleDelete}
       />
     </>
   );

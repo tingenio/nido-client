@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { formatCurrencyWithSymbol } from "@/lib/format/currency";
 import type { Expense } from "@/types";
 
 export function MonthlySummary({ expenses }: { expenses: Expense[] }) {
@@ -26,7 +27,7 @@ export function MonthlySummary({ expenses }: { expenses: Expense[] }) {
             Total del mes
           </p>
           <p className="text-primary mt-1 text-3xl font-semibold tabular-nums">
-            ${total.toLocaleString("es")}
+            {formatCurrencyWithSymbol(total)}
           </p>
         </div>
         {byCategory.length > 0 && (
@@ -35,7 +36,7 @@ export function MonthlySummary({ expenses }: { expenses: Expense[] }) {
               <div key={category} className="flex items-center justify-between gap-2 text-sm">
                 <span className="text-muted-foreground truncate">{category}</span>
                 <span className="shrink-0 tabular-nums font-medium">
-                  ${amount.toLocaleString("es")}
+                  {formatCurrencyWithSymbol(amount)}
                 </span>
               </div>
             ))}

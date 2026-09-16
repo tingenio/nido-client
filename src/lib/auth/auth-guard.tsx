@@ -49,10 +49,9 @@ function ProfileMissing() {
   return (
     <div className="app-gradient-bg flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
       <Logo variant="mark" size="lg" />
-      <p className="text-sm font-medium">No pudimos cargar tu perfil</p>
+      <p className="text-sm font-medium">Sin acceso a la aplicación</p>
       <p className="text-muted-foreground max-w-sm text-sm">
-        Tu cuenta existe pero falta crear tu perfil en el hogar. Revisa que el
-        Admin SDK de Firebase esté configurado y vuelve a intentar.
+        Tu cuenta no tiene acceso. Contacta al administrador de tu hogar.
       </p>
       <Button variant="outline" onClick={() => signOut(auth)}>
         Cerrar sesión

@@ -79,6 +79,16 @@ service cloud.firestore {
         allow write: if false; // se crean vía Server Action (ajusta el saldo del fondo)
       }
 
+      match /bills/{billId} {
+        allow read: if isHouseholdMember(householdId) && !isExternal();
+        allow write: if false;
+      }
+
+      match /billPayments/{paymentId} {
+        allow read: if isHouseholdMember(householdId) && !isExternal();
+        allow write: if false;
+      }
+
       match /funds/{fundId} {
         allow read: if isHouseholdMember(householdId) && !isExternal();
         allow create, update, delete: if isAdmin(householdId);

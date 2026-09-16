@@ -6,6 +6,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { AuthError, requireAppUser, requireNotExternal } from "@/lib/auth/server";
 import type {
+  Task,
   TaskChecklistItem,
   TaskOccurrence,
   TaskOccurrenceChecklistItem,
@@ -328,4 +329,84 @@ export async function rejectOccurrence(input: {
       tx.update(userRef.doc(data.completedBy), { points: FieldValue.increment(-penalty) });
     }
   });
+}
+
+export async function deleteOccurrence(input: {
+  idToken: string;
+  occurrenceId: string;
+  mode: "occurrence" | "series";
+}) {
+  const requester = await requireAppUser(input.idToken);
+  requireNotExternal(requester);
+
+  const occurrenceRef = householdOccurrences(requester.householdId).doc(input.occurrenceId);
+  const userRef = adminDb().collection("users");
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+
+  let taskId: string | null = null;
+  let shouldDeactivate = false;
+  let shouldCleanFuture = false;
+
+  await adminDb().runTransaction(async (tx) => {
+    const snap = await tx.get(occurrenceRef);
+    if (!snap.exists) throw new AuthError("La tarea ya no existe.");
+    const data = snap.data() as TaskOccurrence;
+
+    if (data.status === "completed") {
+      throw new AuthError("Verifica o devuelve la tarea antes de eliminarla.");
+    }
+
+    const taskRef = householdTasks(requester.householdId).doc(data.taskId);
+    const taskSnap = await tx.get(taskRef);
+
+    if (taskSnap.exists) {
+      const task = taskSnap.data() as Omit<Task, "id">;
+      if (requester.role !== "admin" && task.createdBy !== requester.id) {
+        throw new AuthError("No tienes permiso para eliminar esta tarea.");
+      }
+      taskId = data.taskId;
+      shouldDeactivate = input.mode === "series" || task.type === "once";
+      shouldCleanFuture = input.mode === "series" && task.type === "recurring";
+    } else if (requester.role !== "admin") {
+      throw new AuthError("No tienes permiso para eliminar esta tarea.");
+    } else {
+      taskId = data.taskId;
+    }
+
+    if (
+      data.status === "verified" &&
+      data.pointsAwarded &&
+      data.pointsAwarded > 0 &&
+      data.completedBy
+    ) {
+      tx.update(userRef.doc(data.completedBy), {
+        points: FieldValue.increment(-data.pointsAwarded),
+      });
+    }
+
+    tx.delete(occurrenceRef);
+
+    if (shouldDeactivate && taskId) {
+      tx.update(householdTasks(requester.householdId).doc(taskId), { active: false });
+    }
+  });
+
+  if (shouldCleanFuture && taskId) {
+    const futureSnap = await householdOccurrences(requester.householdId)
+      .where("taskId", "==", taskId)
+      .where("date", ">=", todayStr)
+      .get();
+
+    const batch = adminDb().batch();
+    for (const doc of futureSnap.docs) {
+      const occ = doc.data() as TaskOccurrence;
+      if (
+        (occ.status === "pending" || occ.status === "overdue") &&
+        doc.id !== input.occurrenceId
+      ) {
+        batch.delete(doc.ref);
+      }
+    }
+    await batch.commit();
+  }
 }

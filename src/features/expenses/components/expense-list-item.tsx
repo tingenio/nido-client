@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { ExpenseDetailDialog } from "@/features/expenses/components/expense-detail-dialog";
+import { formatCurrencyWithSymbol } from "@/lib/format/currency";
 import type { Expense } from "@/types";
 
 export function ExpenseListItem({ expense }: { expense: Expense }) {
@@ -36,7 +37,7 @@ export function ExpenseListItem({ expense }: { expense: Expense }) {
             </p>
           </div>
           <p className="shrink-0 text-sm font-semibold tabular-nums">
-            ${expense.amount.toLocaleString("es")}
+            {formatCurrencyWithSymbol(expense.amount)}
           </p>
         </CardContent>
       </Card>

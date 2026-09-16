@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EnablePushButton } from "@/features/notifications/components/enable-push-button";
 import { EditProfileDialog } from "@/features/users/components/edit-profile-dialog";
 import { HouseholdRanking } from "@/features/users/components/household-ranking";
-import { InviteMemberDialog } from "@/features/users/components/invite-member-dialog";
+import { AddMemberDialog } from "@/features/users/components/add-member-dialog";
 import { useHouseholdMembers } from "@/features/users/hooks/use-household-members";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { ROLE_LABELS } from "@/lib/labels";
@@ -50,9 +50,9 @@ export default function ProfilePage() {
       <div className="space-y-2">
         <EnablePushButton />
         {appUser?.role === "admin" && (
-          <CreateAction label="Invitar integrante" icon={UserPlus} variant="outline">
+          <CreateAction label="Agregar integrante" icon={UserPlus} variant="outline">
             {({ open, onOpenChange }) => (
-              <InviteMemberDialog open={open} onOpenChange={onOpenChange} />
+              <AddMemberDialog open={open} onOpenChange={onOpenChange} />
             )}
           </CreateAction>
         )}

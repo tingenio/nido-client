@@ -40,9 +40,11 @@ const statusBorder: Record<TaskOccurrence["status"], string> = {
 export function TaskOccurrenceCard({
   occurrence,
   membersById,
+  hideDate = false,
 }: {
   occurrence: TaskOccurrence;
   membersById: Record<string, AppUser>;
+  hideDate?: boolean;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -74,7 +76,9 @@ export function TaskOccurrenceCard({
                 ) : (
                   <span>—</span>
                 )}
-                <span>· {occurrence.date} · {occurrence.points} pts</span>
+                <span>
+                  {hideDate ? `${occurrence.points} pts` : `· ${occurrence.date} · ${occurrence.points} pts`}
+                </span>
               </p>
             </div>
             <Badge variant={statusVariant[occurrence.status]}>{statusLabel[occurrence.status]}</Badge>

@@ -1,7 +1,7 @@
 "use client";
 
-import { ListChecks } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { AlertCircle, ListChecks } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import { CreateAction } from "@/components/layout/create-action";
 import { EmptyState } from "@/components/layout/empty-state";
@@ -10,15 +10,27 @@ import { PageHeader } from "@/components/layout/page-header";
 import { SectionHeader } from "@/components/layout/section-header";
 import { CreateTaskDialog } from "@/features/tasks/components/create-task-dialog";
 import { TaskOccurrenceCard } from "@/features/tasks/components/task-occurrence-card";
+import { TaskPeriodNav } from "@/features/tasks/components/task-period-nav";
+import { TaskViewTabs } from "@/features/tasks/components/task-view-tabs";
 import { ensureUpcomingOccurrences } from "@/features/tasks/actions";
-import { useTaskOccurrences } from "@/features/tasks/hooks/use-task-occurrences";
+import { useOverdueCount, useTaskOccurrences } from "@/features/tasks/hooks/use-task-occurrences";
 import { useHouseholdMembers } from "@/features/users/hooks/use-household-members";
+import {
+  getDayViewSections,
+  getEmptyMessage,
+  getPeriodViewSections,
+  type TaskView,
+} from "@/features/tasks/utils/date-ranges";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { getIdToken } from "@/lib/auth/get-id-token";
+import type { AppUser, TaskOccurrence } from "@/types";
 
 export default function TasksPage() {
   const { appUser } = useAuth();
-  const { occurrences, loading } = useTaskOccurrences();
+  const [view, setView] = useState<TaskView>("day");
+  const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const { occurrences, loading } = useTaskOccurrences({ view, anchorDate });
+  const overdueCount = useOverdueCount();
   const { members } = useHouseholdMembers();
 
   useEffect(() => {
@@ -33,10 +45,26 @@ export default function TasksPage() {
     [members],
   );
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const today = occurrences.filter((o) => o.date === todayStr);
-  const upcoming = occurrences.filter((o) => o.date > todayStr);
-  const past = occurrences.filter((o) => o.date < todayStr);
+  const sections = useMemo((): { title: string; items: TaskOccurrence[]; variant?: "warning" }[] => {
+    if (view === "day") {
+      const { overdue, today } = getDayViewSections(occurrences);
+      const result: { title: string; items: TaskOccurrence[]; variant?: "warning" }[] = [];
+      if (overdue.length > 0) {
+        result.push({ title: "Atrasadas", items: overdue, variant: "warning" });
+      }
+      if (today.length > 0) {
+        result.push({ title: "Hoy", items: today });
+      }
+      return result;
+    }
+    return getPeriodViewSections(occurrences, view, anchorDate);
+  }, [occurrences, view, anchorDate]);
+
+  const totalVisible = sections.reduce((sum, section) => sum + section.items.length, 0);
+
+  function handleToday() {
+    setAnchorDate(new Date());
+  }
 
   return (
     <div className="space-y-6">
@@ -53,38 +81,73 @@ export default function TasksPage() {
         </CreateAction>
       )}
 
+      <TaskViewTabs view={view} onViewChange={setView} overdueCount={overdueCount} />
+
+      {(view === "week" || view === "month") && (
+        <TaskPeriodNav
+          anchorDate={anchorDate}
+          view={view}
+          onAnchorChange={setAnchorDate}
+          onToday={handleToday}
+        />
+      )}
+
       {loading ? (
         <ListSkeleton />
-      ) : occurrences.length === 0 ? (
-        <EmptyState icon={ListChecks} message="No hay tareas por aquí todavía." />
+      ) : totalVisible === 0 ? (
+        <EmptyState icon={ListChecks} message={getEmptyMessage(view)} />
       ) : (
-        <>
-          <Section title="Hoy" items={today} membersById={membersById} />
-          <Section title="Próximas" items={upcoming} membersById={membersById} />
-          <Section title="Atrasadas / por revisar" items={past} membersById={membersById} />
-        </>
+        <div className="space-y-6">
+          {sections.map((section) => (
+            <TaskSection
+              key={section.title}
+              title={section.title}
+              items={section.items}
+              membersById={membersById}
+              hideDate={view !== "day" || section.title === "Hoy"}
+              variant={section.variant}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-function Section({
+function TaskSection({
   title,
   items,
   membersById,
+  hideDate,
+  variant,
 }: {
   title: string;
-  items: ReturnType<typeof useTaskOccurrences>["occurrences"];
-  membersById: Record<string, ReturnType<typeof useHouseholdMembers>["members"][number]>;
+  items: TaskOccurrence[];
+  membersById: Record<string, AppUser>;
+  hideDate?: boolean;
+  variant?: "warning";
 }) {
-  if (items.length === 0) return null;
   return (
     <div className="space-y-2">
+      {variant === "warning" && (
+        <div className="bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
+          <AlertCircle className="size-4 shrink-0" />
+          <span>Tienes {items.length} tarea{items.length === 1 ? "" : "s"} que requieren atención</span>
+        </div>
+      )}
       <SectionHeader title={title} count={items.length} />
       <div className="space-y-2">
         {items.map((occurrence, index) => (
-          <div key={occurrence.id} className="list-item-enter" style={{ "--index": index } as React.CSSProperties}>
-            <TaskOccurrenceCard occurrence={occurrence} membersById={membersById} />
+          <div
+            key={occurrence.id}
+            className="list-item-enter"
+            style={{ "--index": index } as React.CSSProperties}
+          >
+            <TaskOccurrenceCard
+              occurrence={occurrence}
+              membersById={membersById}
+              hideDate={hideDate}
+            />
           </div>
         ))}
       </div>

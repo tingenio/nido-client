@@ -23,40 +23,63 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { inviteMember } from "@/features/users/actions";
+import { createMember } from "@/features/users/actions";
 import { getIdToken } from "@/lib/auth/get-id-token";
-import { ROLE_FORM_LABELS, resolveLabel } from "@/lib/labels";
+import { ROLE_LABELS } from "@/lib/labels";
 import type { UserRole } from "@/types";
 
-const roleOptions = Object.entries(ROLE_FORM_LABELS).map(([value, label]) => ({
-  value: value as Exclude<UserRole, "admin">,
-  label,
-}));
+const roleOptions = (Object.entries(ROLE_LABELS) as [UserRole, string][]).map(
+  ([value, label]) => ({ value, label }),
+);
 
-type InviteMemberDialogProps = {
+type AddMemberDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-export function InviteMemberDialog({ open, onOpenChange }: InviteMemberDialogProps) {
+export function AddMemberDialog({ open, onOpenChange }: AddMemberDialogProps) {
   const [submitting, setSubmitting] = useState(false);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>("member");
+  const [password, setPassword] = useState("");
+
+  function resetForm() {
+    setName("");
+    setEmail("");
+    setRole("member");
+    setPassword("");
+  }
 
   async function handleSubmit() {
+    if (!name.trim()) {
+      toast.error("Ingresa un nombre");
+      return;
+    }
     if (!email.trim()) {
       toast.error("Ingresa un email");
       return;
     }
+    if (password.length < 6) {
+      toast.error("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const idToken = await getIdToken();
-      await inviteMember({ idToken, email: email.trim(), role });
-      toast.success("Invitación creada. Comparte con esa persona el link de registro.");
-      setEmail("");
+      await createMember({
+        idToken,
+        name: name.trim(),
+        email: email.trim(),
+        role,
+        password,
+      });
+      toast.success("Integrante creado. Ya puede iniciar sesión con esas credenciales.");
+      resetForm();
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo invitar");
+      toast.error(error instanceof Error ? error.message : "No se pudo crear el integrante");
     } finally {
       setSubmitting(false);
     }
@@ -66,32 +89,38 @@ export function InviteMemberDialog({ open, onOpenChange }: InviteMemberDialogPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Invitar integrante</DialogTitle>
+          <DialogTitle>Agregar integrante</DialogTitle>
           <DialogDescription>
-            Cuando esa persona cree su cuenta con este email, se unirá automáticamente a tu hogar.
+            Crea una cuenta con correo, nombre y rol. La persona podrá iniciar sesión de inmediato.
           </DialogDescription>
         </DialogHeader>
 
         <DialogBody>
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="invite-email">Email</Label>
+              <Label htmlFor="member-name">Nombre</Label>
               <Input
-                id="invite-email"
+                id="member-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nombre completo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="member-email">Email</Label>
+              <Input
+                id="member-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="correo@ejemplo.com"
               />
             </div>
             <div className="space-y-2">
               <Label>Rol</Label>
-              <Select value={role} onValueChange={(v) => setRole((v as UserRole) ?? "member")}>
+              <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue>
-                    {role === "admin"
-                      ? undefined
-                      : resolveLabel(ROLE_FORM_LABELS, role as Exclude<UserRole, "admin">)}
-                  </SelectValue>
+                  <SelectValue>{ROLE_LABELS[role]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {roleOptions.map((r) => (
@@ -102,13 +131,24 @@ export function InviteMemberDialog({ open, onOpenChange }: InviteMemberDialogPro
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="member-password">Contraseña inicial</Label>
+              <Input
+                id="member-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                autoComplete="new-password"
+              />
+            </div>
           </div>
         </DialogBody>
 
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>
           <Button disabled={submitting} onClick={handleSubmit}>
-            Enviar invitación
+            Crear integrante
           </Button>
         </DialogFooter>
       </DialogContent>

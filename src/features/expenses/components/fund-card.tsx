@@ -4,14 +4,14 @@ import { useState } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { FundDetailDialog } from "@/features/expenses/components/fund-detail-dialog";
+import { getFundProgress } from "@/features/expenses/lib/fund-progress";
+import { formatCurrencyWithSymbol } from "@/lib/format/currency";
 import { cn } from "@/lib/utils";
 import type { Fund } from "@/types";
 
 export function FundCard({ fund }: { fund: Fund }) {
   const [detailOpen, setDetailOpen] = useState(false);
-
-  const progress =
-    fund.balance <= 0 ? 0 : Math.min(100, Math.max(12, (fund.balance / 10000) * 100));
+  const progress = getFundProgress(fund);
 
   return (
     <>
@@ -37,20 +37,26 @@ export function FundCard({ fund }: { fund: Fund }) {
                   fund.balance <= 0 ? "text-destructive" : "text-muted-foreground",
                 )}
               >
-                {fund.balance <= 0 ? "Sin saldo · " : ""}${fund.balance.toLocaleString("es")}
+                {fund.balance <= 0 ? "Sin saldo · " : ""}
+                {formatCurrencyWithSymbol(fund.balance)}
               </p>
+              {progress.hasTarget && progress.label && (
+                <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">{progress.label}</p>
+              )}
             </div>
           </div>
 
-          <div className="bg-muted h-2 overflow-hidden rounded-full">
-            <div
-              className={cn(
-                "h-full rounded-full transition-all duration-300",
-                fund.balance <= 0 ? "bg-destructive/60" : "bg-[var(--brand-sage)]",
-              )}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+          {progress.hasTarget && (
+            <div className="bg-muted h-2 overflow-hidden rounded-full">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-300",
+                  progress.targetReached ? "bg-emerald-600" : "bg-[var(--brand-sage)]",
+                )}
+                style={{ width: `${progress.percent}%` }}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
