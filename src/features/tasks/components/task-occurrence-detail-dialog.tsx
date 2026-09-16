@@ -84,8 +84,8 @@ export function TaskOccurrenceDetailDialog({
 
   const canDelete =
     appUser.role !== "external" &&
-    occurrence.status !== "completed" &&
-    (appUser.role === "admin" || task?.createdBy === appUser.id);
+    (appUser.role === "admin" ||
+      (occurrence.status !== "completed" && task?.createdBy === appUser.id));
 
   async function handleToggleChecklist(itemId: string, checked: boolean) {
     setBusy(true);

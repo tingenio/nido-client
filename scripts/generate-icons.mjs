@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { copyFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
@@ -6,6 +6,7 @@ import sharp from "sharp";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const publicDir = join(root, "public");
+const appDir = join(root, "src/app");
 
 const TERRACOTTA = "#E07A5F";
 const CORAL = "#F4A261";
@@ -75,6 +76,11 @@ async function main() {
   const faviconIco = await toIco([favicon16Buf, favicon32Buf]);
   writeFileSync(join(publicDir, "favicon.ico"), faviconIco);
   console.log("Generated public/favicon.ico");
+
+  copyFileSync(join(publicDir, "favicon.ico"), join(appDir, "favicon.ico"));
+  writeFileSync(join(appDir, "icon.png"), favicon32Buf);
+  copyFileSync(join(publicDir, "apple-touch-icon.png"), join(appDir, "apple-icon.png"));
+  console.log("Generated src/app/favicon.ico, src/app/icon.png, and src/app/apple-icon.png");
 }
 
 main().catch((err) => {

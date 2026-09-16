@@ -1,6 +1,5 @@
 "use client";
 
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -19,7 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth/auth-provider";
-import { db } from "@/lib/firebase/client";
+import { getIdToken } from "@/lib/auth/get-id-token";
+import { createReminder } from "@/features/reminders/actions";
 
 type CreateReminderDialogProps = {
   open: boolean;
@@ -43,15 +43,13 @@ export function CreateReminderDialog({ open, onOpenChange }: CreateReminderDialo
 
     setSubmitting(true);
     try {
-      await addDoc(collection(db, "households", appUser.householdId, "reminders"), {
+      const idToken = await getIdToken();
+      await createReminder({
+        idToken,
         title: title.trim(),
-        description: description.trim() || null,
-        dueAt: new Date(dueAt),
+        description: description.trim() || undefined,
+        dueAt,
         notifyBeforeMinutes: notifyBefore,
-        createdBy: appUser.id,
-        doneAt: null,
-        notifiedAt: null,
-        createdAt: serverTimestamp(),
       });
       toast.success("Recordatorio creado");
       setTitle("");

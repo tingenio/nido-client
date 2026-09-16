@@ -5,6 +5,9 @@ import { FieldValue } from "firebase-admin/firestore";
 
 import { adminDb } from "@/lib/firebase/admin";
 import { AuthError, requireAppUser, requireNotExternal } from "@/lib/auth/server";
+import { sendEmail } from "@/lib/email/send";
+import { taskCreatedTemplate, taskPendingReviewTemplate, taskRejectedTemplate, taskVerifiedTemplate } from "@/lib/email/templates";
+import { getHouseholdAdminEmails, getUserEmail } from "@/lib/email/recipients";
 import type {
   Task,
   TaskChecklistItem,
@@ -102,6 +105,18 @@ export async function createTask(input: {
       input.recurrence,
       occurrenceExtras,
     );
+  }
+
+  const assigneeEmail = await getUserEmail(input.assignedTo);
+  if (assigneeEmail) {
+    const { subject, html } = taskCreatedTemplate({
+      taskTitle: input.title,
+      description: input.description,
+      points: input.points,
+      dueDate: input.dueDate,
+      assignedByName: requester.name,
+    });
+    await sendEmail({ to: assigneeEmail, subject, html });
   }
 
   return { taskId: taskRef.id };
@@ -230,6 +245,8 @@ export async function toggleChecklistItem(input: {
 export async function completeOccurrence(input: { idToken: string; occurrenceId: string }) {
   const requester = await requireAppUser(input.idToken);
   const ref = householdOccurrences(requester.householdId).doc(input.occurrenceId);
+  let completedTitle = "";
+  const completedAt = new Date();
 
   await adminDb().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -246,6 +263,7 @@ export async function completeOccurrence(input: { idToken: string; occurrenceId:
       throw new AuthError("Completa todos los pasos del checklist antes de marcar la tarea.");
     }
 
+    completedTitle = data.title;
     tx.update(ref, {
       status: "completed",
       completedBy: requester.id,
@@ -253,6 +271,16 @@ export async function completeOccurrence(input: { idToken: string; occurrenceId:
       reviewComment: FieldValue.delete(),
     });
   });
+
+  const adminEmails = await getHouseholdAdminEmails(requester.householdId);
+  if (adminEmails.length > 0) {
+    const { subject, html } = taskPendingReviewTemplate({
+      taskTitle: completedTitle,
+      completedByName: requester.name,
+      completedAt,
+    });
+    await sendEmail({ to: adminEmails, subject, html });
+  }
 }
 
 export async function verifyOccurrence(input: {
@@ -264,6 +292,7 @@ export async function verifyOccurrence(input: {
   requireNotExternal(requester);
   const ref = householdOccurrences(requester.householdId).doc(input.occurrenceId);
   const userRef = adminDb().collection("users");
+  let verified: { title: string; points: number; completedBy: string } | null = null;
 
   await adminDb().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -286,7 +315,22 @@ export async function verifyOccurrence(input: {
       ...(input.comment ? { reviewComment: input.comment } : {}),
     });
     tx.update(authorRef, { points: FieldValue.increment(data.points) });
+    verified = { title: data.title, points: data.points, completedBy: data.completedBy! };
   });
+
+  if (verified) {
+    const { title, points, completedBy } = verified as { title: string; points: number; completedBy: string };
+    const email = await getUserEmail(completedBy);
+    if (email) {
+      const { subject, html } = taskVerifiedTemplate({
+        taskTitle: title,
+        points,
+        comment: input.comment,
+        reviewedByName: requester.name,
+      });
+      await sendEmail({ to: email, subject, html });
+    }
+  }
 }
 
 export async function rejectOccurrence(input: {
@@ -300,6 +344,7 @@ export async function rejectOccurrence(input: {
   const ref = householdOccurrences(requester.householdId).doc(input.occurrenceId);
   const userRef = adminDb().collection("users");
   const penalty = Math.max(0, input.penalty ?? 0);
+  let rejected: { title: string; completedBy?: string } | null = null;
 
   await adminDb().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -328,7 +373,21 @@ export async function rejectOccurrence(input: {
     if (penalty > 0 && data.completedBy) {
       tx.update(userRef.doc(data.completedBy), { points: FieldValue.increment(-penalty) });
     }
+    rejected = { title: data.title, completedBy: data.completedBy };
   });
+
+  if (rejected) {
+    const { title, completedBy } = rejected as { title: string; completedBy?: string };
+    const email = completedBy ? await getUserEmail(completedBy) : undefined;
+    if (email) {
+      const { subject, html } = taskRejectedTemplate({
+        taskTitle: title,
+        comment: input.comment,
+        reviewedByName: requester.name,
+      });
+      await sendEmail({ to: email, subject, html });
+    }
+  }
 }
 
 export async function deleteOccurrence(input: {
@@ -352,7 +411,7 @@ export async function deleteOccurrence(input: {
     if (!snap.exists) throw new AuthError("La tarea ya no existe.");
     const data = snap.data() as TaskOccurrence;
 
-    if (data.status === "completed") {
+    if (data.status === "completed" && requester.role !== "admin") {
       throw new AuthError("Verifica o devuelve la tarea antes de eliminarla.");
     }
 

@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
   // ERR_REQUIRE_ESM real (jwks-rsa -> jose@6, ESM-only) se resuelve fijando
   // `jose` a la v4 en pnpm-workspace.yaml (overrides), no aquí.
   serverExternalPackages: ["firebase-admin"],
+
+  // Logo embebido en correos: incluir el PNG en el bundle serverless de Vercel.
+  outputFileTracingIncludes: {
+    "/**/*": ["./src/lib/email/assets/logo-email.png"],
+  },
 };
 
 const withSerwist = withSerwistInit({

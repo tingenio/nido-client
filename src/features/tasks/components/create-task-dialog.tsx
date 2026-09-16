@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createTask } from "@/features/tasks/actions";
 import { useHouseholdMembers } from "@/features/users/hooks/use-household-members";
 import { getIdToken } from "@/lib/auth/get-id-token";
+import { cn } from "@/lib/utils";
 import type { TaskType, WeekDay } from "@/types";
 
 const weekDays: { value: WeekDay; label: string }[] = [
@@ -56,6 +57,8 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [titleListening, setTitleListening] = useState(false);
+  const [descriptionListening, setDescriptionListening] = useState(false);
   const [assignedTo, setAssignedTo] = useState("");
   const [points, setPoints] = useState(5);
   const [type, setType] = useState<TaskType>("once");
@@ -143,18 +146,27 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
             <div className="flex items-center justify-between">
               <Label htmlFor="task-title">Título</Label>
               <MicButton
+                onListeningChange={setTitleListening}
                 onResult={(text) =>
                   setTitle((prev) => (prev ? `${prev} ${text}` : text))
                 }
               />
             </div>
-            <Input id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input
+              id="task-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className={cn(
+                titleListening && "ring-2 ring-destructive/30 transition-shadow duration-300",
+              )}
+            />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="task-description">Descripción (opcional)</Label>
               <MicButton
+                onListeningChange={setDescriptionListening}
                 onResult={(text) =>
                   setDescription((prev) => (prev ? `${prev} ${text}` : text))
                 }
@@ -164,6 +176,10 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
               id="task-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              className={cn(
+                descriptionListening &&
+                  "ring-2 ring-destructive/30 transition-shadow duration-300",
+              )}
             />
           </div>
 
