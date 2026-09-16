@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -27,14 +28,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createExpense } from "@/features/expenses/actions";
 import { useFunds } from "@/features/expenses/hooks/use-funds";
 import { getIdToken } from "@/lib/auth/get-id-token";
+import { EXPENSE_FREQUENCY_LABELS, resolveLabel } from "@/lib/labels";
 import type { ExpenseFrequency, ExpenseType } from "@/types";
 
-const frequencies: { value: ExpenseFrequency; label: string }[] = [
-  { value: "weekly", label: "Semanal" },
-  { value: "biweekly", label: "Quincenal" },
-  { value: "monthly", label: "Mensual" },
-  { value: "yearly", label: "Anual" },
-];
+const frequencies = Object.entries(EXPENSE_FREQUENCY_LABELS).map(([value, label]) => ({
+  value: value as ExpenseFrequency,
+  label,
+}));
 
 const NO_FUND = "none";
 
@@ -103,7 +103,8 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <DialogBody>
+          <div className="space-y-3">
           <div className="space-y-2">
             <Label htmlFor="expense-amount">Monto</Label>
             <Input
@@ -155,7 +156,9 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
               <Label>Frecuencia</Label>
               <Select value={frequency} onValueChange={(v) => setFrequency(v as ExpenseFrequency)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue>
+                    {resolveLabel(EXPENSE_FREQUENCY_LABELS, frequency)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {frequencies.map((f) => (
@@ -172,7 +175,16 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
             <Label>Fondo (opcional)</Label>
             <Select value={fundId} onValueChange={(v) => setFundId(v ?? NO_FUND)}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Gasto general de la casa" />
+                <SelectValue placeholder="Gasto general de la casa">
+                  {fundId === NO_FUND
+                    ? "Gasto general (sin fondo)"
+                    : (() => {
+                        const fund = funds.find((f) => f.id === fundId);
+                        return fund
+                          ? `${fund.name} · $${fund.balance.toLocaleString("es")}`
+                          : undefined;
+                      })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NO_FUND}>Gasto general (sin fondo)</SelectItem>
@@ -184,7 +196,8 @@ export function CreateExpenseDialog({ open, onOpenChange }: CreateExpenseDialogP
               </SelectContent>
             </Select>
           </div>
-        </div>
+          </div>
+        </DialogBody>
 
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>

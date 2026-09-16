@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -58,6 +60,7 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
   const [type, setType] = useState<TaskType>("once");
   const [dueDate, setDueDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [days, setDays] = useState<Set<WeekDay>>(new Set());
+  const [checklistSteps, setChecklistSteps] = useState<string[]>([""]);
 
   function toggleDay(day: WeekDay) {
     setDays((prev) => {
@@ -76,6 +79,19 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
     setType("once");
     setDueDate(format(new Date(), "yyyy-MM-dd"));
     setDays(new Set());
+    setChecklistSteps([""]);
+  }
+
+  function updateChecklistStep(index: number, value: string) {
+    setChecklistSteps((prev) => prev.map((step, i) => (i === index ? value : step)));
+  }
+
+  function addChecklistStep() {
+    setChecklistSteps((prev) => [...prev, ""]);
+  }
+
+  function removeChecklistStep(index: number) {
+    setChecklistSteps((prev) => (prev.length <= 1 ? [""] : prev.filter((_, i) => i !== index)));
   }
 
   async function handleSubmit() {
@@ -100,6 +116,7 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
         type,
         dueDate: type === "once" ? dueDate : undefined,
         recurrence: type === "recurring" ? { daysOfWeek: Array.from(days) } : undefined,
+        checklistItems: checklistSteps.filter((step) => step.trim()),
       });
       toast.success("Tarea creada");
       resetForm();
@@ -119,7 +136,8 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
           <DialogDescription>Asígnala a un integrante del hogar.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <DialogBody>
+          <div className="space-y-3">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="task-title">Título</Label>
@@ -152,7 +170,9 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
             <Label>Asignar a</Label>
             <Select value={assignedTo} onValueChange={(v) => setAssignedTo(v ?? "")}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecciona un integrante" />
+                <SelectValue placeholder="Selecciona un integrante">
+                  {members.find((m) => m.id === assignedTo)?.name}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {members.map((member) => (
@@ -215,7 +235,41 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
               </div>
             </div>
           )}
-        </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Pasos del checklist (opcional)</Label>
+              <Button type="button" variant="ghost" size="sm" onClick={addChecklistStep}>
+                <Plus className="size-3.5" />
+                Agregar paso
+              </Button>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              La tarea no se podrá marcar como completada hasta marcar todos los pasos.
+            </p>
+            <div className="space-y-2">
+              {checklistSteps.map((step, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    value={step}
+                    placeholder={`Paso ${index + 1}`}
+                    onChange={(e) => updateChecklistStep(index, e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Eliminar paso"
+                    onClick={() => removeChecklistStep(index)}
+                  >
+                    <Trash2 className="text-muted-foreground size-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+          </div>
+        </DialogBody>
 
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>

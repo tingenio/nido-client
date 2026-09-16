@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -55,22 +56,24 @@ export function CreateFundDialog({ open, onOpenChange }: CreateFundDialogProps) 
           <DialogTitle>Nuevo fondo</DialogTitle>
           <DialogDescription>Ej: Ocio, Ahorro, Mercado.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="fund-name">Nombre</Label>
-            <Input id="fund-name" value={name} onChange={(e) => setName(e.target.value)} />
+        <DialogBody>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="fund-name">Nombre</Label>
+              <Input id="fund-name" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fund-balance">Saldo inicial</Label>
+              <Input
+                id="fund-balance"
+                type="number"
+                min={0}
+                value={initialBalance}
+                onChange={(e) => setInitialBalance(Number(e.target.value))}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="fund-balance">Saldo inicial</Label>
-            <Input
-              id="fund-balance"
-              type="number"
-              min={0}
-              value={initialBalance}
-              onChange={(e) => setInitialBalance(Number(e.target.value))}
-            />
-          </div>
-        </div>
+        </DialogBody>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>
           <Button disabled={submitting} onClick={handleSubmit}>

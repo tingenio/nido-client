@@ -3,6 +3,15 @@ import type { Timestamp } from "firebase/firestore";
 export type TaskType = "once" | "recurring";
 export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = domingo
 
+export interface TaskChecklistItem {
+  id: string;
+  label: string;
+}
+
+export interface TaskOccurrenceChecklistItem extends TaskChecklistItem {
+  checked: boolean;
+}
+
 export interface TaskRecurrence {
   /** Días de la semana en que se genera una ocurrencia. */
   daysOfWeek: WeekDay[];
@@ -23,6 +32,8 @@ export interface Task {
   dueDate?: Timestamp;
   /** Solo para type === "recurring" */
   recurrence?: TaskRecurrence;
+  /** Pasos opcionales del checklist interno. */
+  checklistItems?: TaskChecklistItem[];
   active: boolean;
   createdAt: Timestamp;
 }
@@ -43,8 +54,11 @@ export interface TaskOccurrence {
   id: string;
   taskId: string;
   title: string;
+  description?: string;
   assignedTo: string;
   points: number;
+  /** Snapshot del checklist para esta ocurrencia; cada fecha reinicia los checks. */
+  checklist?: TaskOccurrenceChecklistItem[];
   /** Fecha (sin hora) a la que corresponde esta ocurrencia, en formato yyyy-MM-dd. */
   date: string;
   status: TaskOccurrenceStatus;

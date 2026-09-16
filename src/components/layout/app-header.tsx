@@ -7,15 +7,7 @@ import { useState } from "react";
 
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { auth } from "@/lib/firebase/client";
 
 const routeTitles: Record<string, string> = {
@@ -29,10 +21,16 @@ export function AppHeader() {
   const pathname = usePathname();
   const title = routeTitles[pathname] ?? "Nido";
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   async function handleLogout() {
-    await signOut(auth);
-    setLogoutOpen(false);
+    setLoggingOut(true);
+    try {
+      await signOut(auth);
+      setLogoutOpen(false);
+    } finally {
+      setLoggingOut(false);
+    }
   }
 
   return (
@@ -64,22 +62,16 @@ export function AppHeader() {
         </div>
       </header>
 
-      <Dialog open={logoutOpen} onOpenChange={setLogoutOpen}>
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>¿Cerrar sesión?</DialogTitle>
-            <DialogDescription>
-              Tendrás que volver a ingresar para acceder a tu hogar.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>
-            <Button variant="destructive" onClick={handleLogout}>
-              Cerrar sesión
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        title="¿Cerrar sesión?"
+        description="Tendrás que volver a ingresar para acceder a tu hogar."
+        confirmLabel="Cerrar sesión"
+        variant="destructive"
+        loading={loggingOut}
+        onConfirm={handleLogout}
+      />
     </>
   );
 }

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -24,12 +25,13 @@ import {
 } from "@/components/ui/select";
 import { inviteMember } from "@/features/users/actions";
 import { getIdToken } from "@/lib/auth/get-id-token";
+import { ROLE_FORM_LABELS, resolveLabel } from "@/lib/labels";
 import type { UserRole } from "@/types";
 
-const roleOptions: { value: UserRole; label: string }[] = [
-  { value: "member", label: "Miembro de la familia" },
-  { value: "external", label: "Externo (ej. empleada doméstica)" },
-];
+const roleOptions = Object.entries(ROLE_FORM_LABELS).map(([value, label]) => ({
+  value: value as Exclude<UserRole, "admin">,
+  label,
+}));
 
 type InviteMemberDialogProps = {
   open: boolean;
@@ -70,32 +72,38 @@ export function InviteMemberDialog({ open, onOpenChange }: InviteMemberDialogPro
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="invite-email">Email</Label>
-            <Input
-              id="invite-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+        <DialogBody>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">Email</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Rol</Label>
+              <Select value={role} onValueChange={(v) => setRole((v as UserRole) ?? "member")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {role === "admin"
+                      ? undefined
+                      : resolveLabel(ROLE_FORM_LABELS, role as Exclude<UserRole, "admin">)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>Rol</Label>
-            <Select value={role} onValueChange={(v) => setRole((v as UserRole) ?? "member")}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {roleOptions.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>
-                    {r.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        </DialogBody>
 
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>

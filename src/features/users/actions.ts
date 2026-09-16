@@ -84,6 +84,52 @@ export async function provisionUser(input: {
   return { householdId: newUser.householdId, role: newUser.role };
 }
 
+function isValidAvatarUrl(photoURL: string, uid: string, storageBucket: string): boolean {
+  try {
+    const url = new URL(photoURL);
+    const expectedHost = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/`;
+    if (!url.href.startsWith(expectedHost)) return false;
+    const encodedPath = url.pathname.split("/o/")[1]?.split("?")[0];
+    if (!encodedPath) return false;
+    const path = decodeURIComponent(encodedPath);
+    return path.startsWith(`users/${uid}/avatar/`);
+  } catch {
+    return false;
+  }
+}
+
+export async function updateProfile(input: {
+  idToken: string;
+  name: string;
+  photoURL?: string | null;
+}) {
+  const user = await requireAppUser(input.idToken);
+  const name = input.name.trim();
+  if (name.length < 2) {
+    throw new Error("El nombre debe tener al menos 2 caracteres.");
+  }
+
+  const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+  if (input.photoURL && storageBucket) {
+    if (!isValidAvatarUrl(input.photoURL, user.id, storageBucket)) {
+      throw new Error("URL de foto inválida.");
+    }
+  }
+
+  const updates: { name: string; photoURL?: string | null } = { name };
+  if (input.photoURL !== undefined) {
+    updates.photoURL = input.photoURL;
+  }
+
+  await adminDb().collection("users").doc(user.id).update(updates);
+
+  const authUpdates: { displayName: string; photoURL?: string } = { displayName: name };
+  if (input.photoURL) {
+    authUpdates.photoURL = input.photoURL;
+  }
+  await adminAuth().updateUser(user.id, authUpdates);
+}
+
 export async function inviteMember(input: {
   idToken: string;
   email: string;

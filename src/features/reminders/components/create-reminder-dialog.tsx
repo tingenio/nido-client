@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -73,39 +74,41 @@ export function CreateReminderDialog({ open, onOpenChange }: CreateReminderDialo
           <DialogDescription>Visible para todo el hogar.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="reminder-title">Título</Label>
-            <Input id="reminder-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <DialogBody>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="reminder-title">Título</Label>
+              <Input id="reminder-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reminder-description">Descripción (opcional)</Label>
+              <Textarea
+                id="reminder-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reminder-due">Fecha y hora</Label>
+              <Input
+                id="reminder-due"
+                type="datetime-local"
+                value={dueAt}
+                onChange={(e) => setDueAt(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reminder-notify">Avisar con anticipación (minutos)</Label>
+              <Input
+                id="reminder-notify"
+                type="number"
+                min={0}
+                value={notifyBefore}
+                onChange={(e) => setNotifyBefore(Number(e.target.value))}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="reminder-description">Descripción (opcional)</Label>
-            <Textarea
-              id="reminder-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="reminder-due">Fecha y hora</Label>
-            <Input
-              id="reminder-due"
-              type="datetime-local"
-              value={dueAt}
-              onChange={(e) => setDueAt(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="reminder-notify">Avisar con anticipación (minutos)</Label>
-            <Input
-              id="reminder-notify"
-              type="number"
-              min={0}
-              value={notifyBefore}
-              onChange={(e) => setNotifyBefore(Number(e.target.value))}
-            />
-          </div>
-        </div>
+        </DialogBody>
 
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -40,27 +41,29 @@ export function RejectTaskDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="comment">Comentario</Label>
-            <Textarea
-              id="comment"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Ej: faltó limpiar debajo de la mesa"
-            />
+        <DialogBody>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="comment">Comentario</Label>
+              <Textarea
+                id="comment"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Ej: faltó limpiar debajo de la mesa"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="penalty">Puntos a restar (opcional)</Label>
+              <Input
+                id="penalty"
+                type="number"
+                min={0}
+                value={penalty}
+                onChange={(e) => setPenalty(Number(e.target.value))}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="penalty">Puntos a restar (opcional)</Label>
-            <Input
-              id="penalty"
-              type="number"
-              min={0}
-              value={penalty}
-              onChange={(e) => setPenalty(Number(e.target.value))}
-            />
-          </div>
-        </div>
+        </DialogBody>
 
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>

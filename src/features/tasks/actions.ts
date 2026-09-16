@@ -5,7 +5,14 @@ import { FieldValue } from "firebase-admin/firestore";
 
 import { adminDb } from "@/lib/firebase/admin";
 import { AuthError, requireAppUser, requireNotExternal } from "@/lib/auth/server";
-import type { TaskOccurrence, TaskRecurrence, TaskType, WeekDay } from "@/types";
+import type {
+  TaskChecklistItem,
+  TaskOccurrence,
+  TaskOccurrenceChecklistItem,
+  TaskRecurrence,
+  TaskType,
+  WeekDay,
+} from "@/types";
 
 const OCCURRENCE_HORIZON_DAYS = 14;
 
@@ -17,6 +24,17 @@ function householdOccurrences(householdId: string) {
   return adminDb().collection("households").doc(householdId).collection("taskOccurrences");
 }
 
+function buildChecklistItems(labels: string[]): TaskChecklistItem[] {
+  return labels
+    .map((label) => label.trim())
+    .filter(Boolean)
+    .map((label) => ({ id: crypto.randomUUID(), label }));
+}
+
+function snapshotChecklist(items: TaskChecklistItem[]): TaskOccurrenceChecklistItem[] {
+  return items.map((item) => ({ ...item, checked: false }));
+}
+
 export async function createTask(input: {
   idToken: string;
   title: string;
@@ -26,6 +44,7 @@ export async function createTask(input: {
   type: TaskType;
   dueDate?: string; // yyyy-MM-dd, requerido si type === "once"
   recurrence?: TaskRecurrence; // requerido si type === "recurring"
+  checklistItems?: string[];
 }) {
   const requester = await requireAppUser(input.idToken);
   requireNotExternal(requester);
@@ -37,6 +56,7 @@ export async function createTask(input: {
     throw new AuthError("Selecciona al menos un día de la semana.");
   }
 
+  const checklistItems = buildChecklistItems(input.checklistItems ?? []);
   const taskRef = householdTasks(requester.householdId).doc();
   await taskRef.set({
     title: input.title,
@@ -48,14 +68,29 @@ export async function createTask(input: {
     ...(input.type === "once"
       ? { dueDate: new Date(`${input.dueDate}T00:00:00`) }
       : { recurrence: input.recurrence }),
+    ...(checklistItems.length > 0 ? { checklistItems } : {}),
     active: true,
     createdAt: FieldValue.serverTimestamp(),
   });
 
+  const occurrenceExtras = {
+    description: input.description?.trim() || undefined,
+    checklist: checklistItems.length > 0 ? snapshotChecklist(checklistItems) : undefined,
+  };
+
   if (input.type === "once" && input.dueDate) {
     await householdOccurrences(requester.householdId)
       .doc(`${taskRef.id}_${input.dueDate}`)
-      .set(buildOccurrence(taskRef.id, input.title, input.assignedTo, input.points, input.dueDate));
+      .set(
+        buildOccurrence(
+          taskRef.id,
+          input.title,
+          input.assignedTo,
+          input.points,
+          input.dueDate,
+          occurrenceExtras,
+        ),
+      );
   } else if (input.recurrence) {
     await generateOccurrencesForTask(
       requester.householdId,
@@ -64,6 +99,7 @@ export async function createTask(input: {
       input.assignedTo,
       input.points,
       input.recurrence,
+      occurrenceExtras,
     );
   }
 
@@ -76,6 +112,7 @@ function buildOccurrence(
   assignedTo: string,
   points: number,
   date: string,
+  extras?: { description?: string; checklist?: TaskOccurrenceChecklistItem[] },
 ): Omit<TaskOccurrence, "id"> {
   return {
     taskId,
@@ -84,6 +121,8 @@ function buildOccurrence(
     points,
     date,
     status: "pending",
+    ...(extras?.description ? { description: extras.description } : {}),
+    ...(extras?.checklist?.length ? { checklist: extras.checklist } : {}),
     createdAt: FieldValue.serverTimestamp() as unknown as TaskOccurrence["createdAt"],
   };
 }
@@ -95,6 +134,7 @@ async function generateOccurrencesForTask(
   assignedTo: string,
   points: number,
   recurrence: TaskRecurrence,
+  extras?: { description?: string; checklist?: TaskOccurrenceChecklistItem[] },
 ) {
   const days = new Set<WeekDay>(recurrence.daysOfWeek);
   const today = new Date();
@@ -110,7 +150,7 @@ async function generateOccurrencesForTask(
     const existing = await ref.get();
     if (existing.exists) continue;
 
-    batch.set(ref, buildOccurrence(taskId, title, assignedTo, points, dateStr));
+    batch.set(ref, buildOccurrence(taskId, title, assignedTo, points, dateStr, extras));
   }
 
   await batch.commit();
@@ -129,6 +169,7 @@ export async function ensureUpcomingOccurrences(idToken: string) {
 
   for (const doc of recurringTasks.docs) {
     const task = doc.data();
+    const checklistItems = (task.checklistItems ?? []) as TaskChecklistItem[];
     await generateOccurrencesForTask(
       requester.householdId,
       doc.id,
@@ -136,8 +177,53 @@ export async function ensureUpcomingOccurrences(idToken: string) {
       task.assignedTo,
       task.points,
       task.recurrence,
+      {
+        description: task.description?.trim() || undefined,
+        checklist: checklistItems.length > 0 ? snapshotChecklist(checklistItems) : undefined,
+      },
     );
   }
+}
+
+function allChecklistItemsChecked(checklist?: TaskOccurrenceChecklistItem[]) {
+  if (!checklist || checklist.length === 0) return true;
+  return checklist.every((item) => item.checked);
+}
+
+export async function toggleChecklistItem(input: {
+  idToken: string;
+  occurrenceId: string;
+  itemId: string;
+  checked: boolean;
+}) {
+  const requester = await requireAppUser(input.idToken);
+  const ref = householdOccurrences(requester.householdId).doc(input.occurrenceId);
+
+  await adminDb().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new AuthError("La tarea ya no existe.");
+    const data = snap.data() as TaskOccurrence;
+
+    if (data.assignedTo !== requester.id && requester.role !== "admin") {
+      throw new AuthError("Solo la persona asignada puede marcar los pasos.");
+    }
+    if (data.status !== "pending" && data.status !== "overdue") {
+      throw new AuthError("Esta tarea ya no admite cambios en el checklist.");
+    }
+    if (!data.checklist?.length) {
+      throw new AuthError("Esta tarea no tiene checklist.");
+    }
+
+    const checklist = data.checklist.map((item) =>
+      item.id === input.itemId ? { ...item, checked: input.checked } : item,
+    );
+
+    if (!checklist.some((item) => item.id === input.itemId)) {
+      throw new AuthError("El paso del checklist ya no existe.");
+    }
+
+    tx.update(ref, { checklist });
+  });
 }
 
 export async function completeOccurrence(input: { idToken: string; occurrenceId: string }) {
@@ -154,6 +240,9 @@ export async function completeOccurrence(input: { idToken: string; occurrenceId:
     }
     if (data.status !== "pending" && data.status !== "overdue") {
       throw new AuthError("Esta tarea ya fue marcada.");
+    }
+    if (!allChecklistItemsChecked(data.checklist)) {
+      throw new AuthError("Completa todos los pasos del checklist antes de marcar la tarea.");
     }
 
     tx.update(ref, {
@@ -223,6 +312,8 @@ export async function rejectOccurrence(input: {
       throw new AuthError("Otra persona debe revisar esta tarea.");
     }
 
+    const resetChecklist = data.checklist?.map((item) => ({ ...item, checked: false }));
+
     tx.update(ref, {
       status: "pending",
       reviewedBy: requester.id,
@@ -230,6 +321,7 @@ export async function rejectOccurrence(input: {
       reviewComment: input.comment,
       completedBy: FieldValue.delete(),
       completedAt: FieldValue.delete(),
+      ...(resetChecklist?.length ? { checklist: resetChecklist } : {}),
     });
 
     if (penalty > 0 && data.completedBy) {
