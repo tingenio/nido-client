@@ -84,18 +84,48 @@ export async function provisionUser(input: {
   return { householdId: newUser.householdId, role: newUser.role };
 }
 
-function isValidAvatarUrl(photoURL: string, uid: string, storageBucket: string): boolean {
+const MAX_PHOTO_DATA_URL_LENGTH = 220_000;
+
+function isValidPhotoDataUrl(photoURL: string): boolean {
+  if (!photoURL.startsWith("data:image/")) return false;
+  if (photoURL.length > MAX_PHOTO_DATA_URL_LENGTH) return false;
+  return /^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(photoURL);
+}
+
+function isAvatarObjectPath(path: string, uid: string): boolean {
+  return path.startsWith(`users/${uid}/avatar/`);
+}
+
+function isValidStorageAvatarUrl(photoURL: string, uid: string, storageBucket: string): boolean {
   try {
     const url = new URL(photoURL);
-    const expectedHost = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/`;
-    if (!url.href.startsWith(expectedHost)) return false;
-    const encodedPath = url.pathname.split("/o/")[1]?.split("?")[0];
-    if (!encodedPath) return false;
-    const path = decodeURIComponent(encodedPath);
-    return path.startsWith(`users/${uid}/avatar/`);
+
+    if (url.hostname === "firebasestorage.googleapis.com") {
+      const match = url.pathname.match(/^\/v0\/b\/([^/]+)\/o\/(.+)$/);
+      if (!match) return false;
+      const [, bucket, encodedPath] = match;
+      if (bucket !== storageBucket) return false;
+      const path = decodeURIComponent(encodedPath.split("?")[0]);
+      return isAvatarObjectPath(path, uid);
+    }
+
+    if (url.hostname === "storage.googleapis.com") {
+      const path = url.pathname.replace(/^\//, "");
+      if (!path.startsWith(`${storageBucket}/`)) return false;
+      const objectPath = path.slice(storageBucket.length + 1);
+      return isAvatarObjectPath(objectPath, uid);
+    }
+
+    return false;
   } catch {
     return false;
   }
+}
+
+function isValidPhotoURL(photoURL: string, uid: string, storageBucket?: string): boolean {
+  if (isValidPhotoDataUrl(photoURL)) return true;
+  if (storageBucket && isValidStorageAvatarUrl(photoURL, uid, storageBucket)) return true;
+  return false;
 }
 
 export async function updateProfile(input: {
@@ -110,9 +140,9 @@ export async function updateProfile(input: {
   }
 
   const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-  if (input.photoURL && storageBucket) {
-    if (!isValidAvatarUrl(input.photoURL, user.id, storageBucket)) {
-      throw new Error("URL de foto inválida.");
+  if (input.photoURL) {
+    if (!isValidPhotoURL(input.photoURL, user.id, storageBucket)) {
+      throw new Error("Foto de perfil inválida.");
     }
   }
 
@@ -124,7 +154,8 @@ export async function updateProfile(input: {
   await adminDb().collection("users").doc(user.id).update(updates);
 
   const authUpdates: { displayName: string; photoURL?: string } = { displayName: name };
-  if (input.photoURL) {
+  // Firebase Auth no acepta data URLs largas; la foto vive en Firestore.
+  if (input.photoURL && !input.photoURL.startsWith("data:")) {
     authUpdates.photoURL = input.photoURL;
   }
   await adminAuth().updateUser(user.id, authUpdates);

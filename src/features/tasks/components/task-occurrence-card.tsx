@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { UserLabel } from "@/components/ui/user-avatar";
 import { TaskOccurrenceDetailDialog } from "@/features/tasks/components/task-occurrence-detail-dialog";
 import { cn } from "@/lib/utils";
 import type { AppUser, TaskOccurrence } from "@/types";
@@ -67,8 +68,13 @@ export function TaskOccurrenceCard({
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="font-medium leading-tight">{occurrence.title}</p>
-              <p className="text-muted-foreground text-xs">
-                {assignee?.name ?? "—"} · {occurrence.date} · {occurrence.points} pts
+              <p className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
+                {assignee ? (
+                  <UserLabel name={assignee.name} photoURL={assignee.photoURL} size="sm" />
+                ) : (
+                  <span>—</span>
+                )}
+                <span>· {occurrence.date} · {occurrence.points} pts</span>
               </p>
             </div>
             <Badge variant={statusVariant[occurrence.status]}>{statusLabel[occurrence.status]}</Badge>

@@ -1,8 +1,9 @@
 "use client";
 
-import { Calendar, Receipt, Tag, User, Wallet } from "lucide-react";
+import { Calendar, Receipt, Tag, Wallet } from "lucide-react";
 
 import { DetailDialog } from "@/components/ui/detail-dialog";
+import { UserLabel } from "@/components/ui/user-avatar";
 import { useHouseholdMembers } from "@/features/users/hooks/use-household-members";
 import { useFunds } from "@/features/expenses/hooks/use-funds";
 import type { Expense } from "@/types";
@@ -61,8 +62,12 @@ export function ExpenseDetailDialog({ open, onOpenChange, expense }: ExpenseDeta
             {fund ? fund.name : "Gasto general del hogar"}
           </p>
           <p className="flex items-center gap-2">
-            <User className="size-4 shrink-0" />
-            Registrado por {creator?.name ?? "—"}
+            <span className="shrink-0">Registrado por</span>
+            {creator ? (
+              <UserLabel name={creator.name} photoURL={creator.photoURL} />
+            ) : (
+              <span>—</span>
+            )}
           </p>
           <p className="flex items-center gap-2">
             <Receipt className="size-4 shrink-0" />

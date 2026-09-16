@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { DetailDialog } from "@/components/ui/detail-dialog";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import {
   Dialog,
   DialogBody,
@@ -19,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { addFundIncome } from "@/features/expenses/actions";
 import { useFundMovements } from "@/features/expenses/hooks/use-fund-movements";
+import { useHouseholdMembers } from "@/features/users/hooks/use-household-members";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { getIdToken } from "@/lib/auth/get-id-token";
 import { cn } from "@/lib/utils";
@@ -32,6 +34,7 @@ type FundDetailDialogProps = {
 
 export function FundDetailDialog({ open, onOpenChange, fund }: FundDetailDialogProps) {
   const { appUser } = useAuth();
+  const { members } = useHouseholdMembers();
   const { movements, loading } = useFundMovements(open ? fund.id : null);
   const [incomeOpen, setIncomeOpen] = useState(false);
   const [amount, setAmount] = useState(0);
@@ -109,23 +112,36 @@ export function FundDetailDialog({ open, onOpenChange, fund }: FundDetailDialogP
               <p className="text-muted-foreground text-sm">Sin movimientos todavía.</p>
             ) : (
               <ul className="divide-y rounded-lg border">
-                {movements.map((movement) => (
+                {movements.map((movement) => {
+                  const author = members.find((member) => member.id === movement.createdBy);
+
+                  return (
                   <li key={movement.id} className="flex items-start gap-3 px-3 py-2.5">
-                    <div
-                      className={cn(
-                        "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
-                        movement.type === "income" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700",
-                      )}
-                    >
-                      {movement.type === "income" ? (
-                        <ArrowDownLeft className="size-3.5" />
-                      ) : (
-                        <ArrowUpRight className="size-3.5" />
-                      )}
-                    </div>
+                    {author ? (
+                      <UserAvatar
+                        name={author.name}
+                        photoURL={author.photoURL}
+                        size="sm"
+                        className="mt-0.5 size-7"
+                      />
+                    ) : (
+                      <div
+                        className={cn(
+                          "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
+                          movement.type === "income" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700",
+                        )}
+                      >
+                        {movement.type === "income" ? (
+                          <ArrowDownLeft className="size-3.5" />
+                        ) : (
+                          <ArrowUpRight className="size-3.5" />
+                        )}
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{movement.description}</p>
                       <p className="text-muted-foreground text-xs">
+                        {author ? `${author.name} · ` : ""}
                         {movement.createdAt.toDate().toLocaleString("es", {
                           dateStyle: "medium",
                           timeStyle: "short",
@@ -141,7 +157,8 @@ export function FundDetailDialog({ open, onOpenChange, fund }: FundDetailDialogP
                       {movement.type === "income" ? "+" : "-"}${movement.amount.toLocaleString("es")}
                     </p>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </div>

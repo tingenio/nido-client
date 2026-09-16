@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, MessageSquare, User } from "lucide-react";
+import { Calendar, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DetailDialog } from "@/components/ui/detail-dialog";
+import { UserLabel } from "@/components/ui/user-avatar";
 import {
   completeOccurrence,
   rejectOccurrence,
@@ -171,10 +172,11 @@ export function TaskOccurrenceDetailDialog({
           ) : null}
 
           <div className="text-muted-foreground space-y-2 text-sm">
-            <p className="flex items-center gap-2">
-              <User className="size-4 shrink-0" />
-              {assignee?.name ?? "—"}
-            </p>
+            {assignee ? (
+              <UserLabel name={assignee.name} photoURL={assignee.photoURL} />
+            ) : (
+              <p>—</p>
+            )}
             <p className="flex items-center gap-2">
               <Calendar className="size-4 shrink-0" />
               {occurrence.date} · {occurrence.points} pts

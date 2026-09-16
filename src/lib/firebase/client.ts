@@ -3,7 +3,6 @@
 import { type FirebaseApp, getApps, initializeApp } from "firebase/app";
 import { type Auth, getAuth } from "firebase/auth";
 import { type Firestore, getFirestore } from "firebase/firestore";
-import { type FirebaseStorage, getStorage } from "firebase/storage";
 
 import { getFirebaseClientConfig } from "./config";
 
@@ -16,4 +15,3 @@ function createFirebaseApp(): FirebaseApp {
 export const firebaseApp = createFirebaseApp();
 export const auth: Auth = getAuth(firebaseApp);
 export const db: Firestore = getFirestore(firebaseApp);
-export const storage: FirebaseStorage = getStorage(firebaseApp);

@@ -1,33 +1,20 @@
 "use client";
 
-import { Pencil, Trophy, UserPlus } from "lucide-react";
+import { Pencil, UserPlus } from "lucide-react";
 import { useState } from "react";
 
 import { CreateAction } from "@/components/layout/create-action";
-import { EmptyState } from "@/components/layout/empty-state";
-import { ListSkeleton } from "@/components/layout/list-skeleton";
 import { PageHeader } from "@/components/layout/page-header";
-import { SectionHeader } from "@/components/layout/section-header";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnablePushButton } from "@/features/notifications/components/enable-push-button";
 import { EditProfileDialog } from "@/features/users/components/edit-profile-dialog";
+import { HouseholdRanking } from "@/features/users/components/household-ranking";
 import { InviteMemberDialog } from "@/features/users/components/invite-member-dialog";
 import { useHouseholdMembers } from "@/features/users/hooks/use-household-members";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { ROLE_LABELS } from "@/lib/labels";
-import { cn } from "@/lib/utils";
-
-function MemberAvatar({ name, photoURL }: { name: string; photoURL?: string }) {
-  return (
-    <Avatar className="size-8">
-      {photoURL && <AvatarImage src={photoURL} alt={name} />}
-      <AvatarFallback className="text-xs">{name.slice(0, 2).toUpperCase()}</AvatarFallback>
-    </Avatar>
-  );
-}
 
 export default function ProfilePage() {
   const { appUser } = useAuth();
@@ -40,14 +27,11 @@ export default function ProfilePage() {
 
       <Card>
         <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
-          <Avatar className="size-16">
-            {appUser?.photoURL && (
-              <AvatarImage src={appUser.photoURL} alt={appUser.name} />
-            )}
-            <AvatarFallback className="text-lg">
-              {appUser?.name?.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            name={appUser?.name ?? "?"}
+            photoURL={appUser?.photoURL}
+            size="lg"
+          />
           <div>
             <p className="text-lg font-semibold">{appUser?.name}</p>
             <p className="text-muted-foreground text-sm">
@@ -74,49 +58,11 @@ export default function ProfilePage() {
         )}
       </div>
 
-      <div className="space-y-2">
-        <SectionHeader title="Ranking del hogar" count={members.length} />
-        {loading ? (
-          <ListSkeleton count={4} />
-        ) : members.length === 0 ? (
-          <EmptyState icon={Trophy} message="Aún no hay integrantes en el hogar." />
-        ) : (
-          <Card>
-            <CardContent className="divide-y py-0">
-              {members.map((member, index) => (
-                <div
-                  key={member.id}
-                  className={cn(
-                    "flex h-14 items-center justify-between",
-                    member.id === appUser?.id && "bg-primary/5 rounded-lg",
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={cn(
-                        "flex size-7 items-center justify-center rounded-full text-sm font-medium",
-                        index === 0 ? "bg-primary/10 text-primary" : "text-muted-foreground",
-                      )}
-                    >
-                      {index + 1}
-                    </span>
-                    <MemberAvatar name={member.name} photoURL={member.photoURL} />
-                    <span className={cn(member.id === appUser?.id && "font-medium")}>
-                      {member.name}
-                    </span>
-                    {member.role !== "member" && (
-                      <Badge variant="outline" className="text-[10px]">
-                        {ROLE_LABELS[member.role]}
-                      </Badge>
-                    )}
-                  </div>
-                  <span className="tabular-nums font-medium">{member.points} pts</span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      <HouseholdRanking
+        members={members}
+        currentUserId={appUser?.id}
+        loading={loading}
+      />
     </div>
   );
 }

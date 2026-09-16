@@ -1,13 +1,15 @@
 "use client";
 
-import { Bell, Clock, Trash2 } from "lucide-react";
+import { Bell, Clock, Trash2, User } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DetailDialog } from "@/components/ui/detail-dialog";
+import { UserLabel } from "@/components/ui/user-avatar";
 import { DeleteReminderDialog } from "@/features/reminders/components/delete-reminder-dialog";
 import { useReminderActions } from "@/features/reminders/hooks/use-reminder-actions";
+import { useHouseholdMembers } from "@/features/users/hooks/use-household-members";
 import { cn } from "@/lib/utils";
 import type { Reminder } from "@/types";
 
@@ -19,10 +21,13 @@ type ReminderDetailDialogProps = {
 
 export function ReminderDetailDialog({ open, onOpenChange, reminder }: ReminderDetailDialogProps) {
   const { appUser, canManage, toggleDone, handleDelete } = useReminderActions(reminder);
+  const { members } = useHouseholdMembers();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   if (!appUser) return null;
+
+  const creator = members.find((member) => member.id === reminder.createdBy);
 
   const dueDate = reminder.dueAt.toDate();
   const isDone = Boolean(reminder.doneAt);
@@ -86,6 +91,14 @@ export function ReminderDetailDialog({ open, onOpenChange, reminder }: ReminderD
             <p className="flex items-center gap-2">
               <Bell className="size-4 shrink-0" />
               Aviso {reminder.notifyBeforeMinutes} min antes
+            </p>
+            <p className="flex items-center gap-2">
+              <User className="size-4 shrink-0" />
+              {creator ? (
+                <UserLabel name={creator.name} photoURL={creator.photoURL} />
+              ) : (
+                <span>Creado por —</span>
+              )}
             </p>
           </div>
         </div>

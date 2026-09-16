@@ -16,6 +16,7 @@ export interface AppUser {
   householdId: string;
   name: string;
   email: string;
+  /** URL de Storage o data URL (base64) guardada en Firestore. */
   photoURL?: string;
   role: UserRole;
   points: number;

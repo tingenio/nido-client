@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { MicButton } from "@/components/mic-button";
 import { Button } from "@/components/ui/button";
+import { UserLabel } from "@/components/ui/user-avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -171,13 +172,18 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
             <Select value={assignedTo} onValueChange={(v) => setAssignedTo(v ?? "")}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecciona un integrante">
-                  {members.find((m) => m.id === assignedTo)?.name}
+                  {(() => {
+                    const selected = members.find((m) => m.id === assignedTo);
+                    return selected ? (
+                      <UserLabel name={selected.name} photoURL={selected.photoURL} />
+                    ) : null;
+                  })()}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {members.map((member) => (
                   <SelectItem key={member.id} value={member.id}>
-                    {member.name}
+                    <UserLabel name={member.name} photoURL={member.photoURL} />
                   </SelectItem>
                 ))}
               </SelectContent>
