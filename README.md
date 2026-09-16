@@ -78,11 +78,20 @@ mismo email, se une automáticamente al hogar con el rol asignado.
 
 ## Notificaciones push
 
-El endpoint `/api/cron/notify-reminders` revisa los recordatorios próximos a
-cumplirse y envía push a los dispositivos registrados. En producción se
-dispara vía **Vercel Cron** (ver `vercel.json`, cada 5 min) — si despliegas en
-otro lado, necesitas programar tú esa llamada (con el header
+El endpoint `/api/cron/notify-reminders` revisa los recordatorios que vencen
+en las próximas 24h (aún no notificados) y envía push a los dispositivos
+registrados. En producción se dispara vía **Vercel Cron** (ver
+`vercel.json`, una vez al día a las 12:00 UTC) — si despliegas en otro lado,
+necesitas programar tú esa llamada (con el header
 `Authorization: Bearer <CRON_SECRET>`).
+
+El plan gratuito (Hobby) de Vercel solo permite crons con frecuencia diaria,
+por eso corre una vez al día en vez de cada pocos minutos. Como consecuencia,
+`notifyBeforeMinutes` ya no determina el momento exacto del aviso — el push
+llega en algún momento de esa corrida diaria, no X minutos antes del evento.
+Si pasas a un plan de pago (o despliegas fuera de Vercel) puedes bajar la
+frecuencia en `vercel.json` y restaurar el chequeo por minuto en
+`src/app/api/cron/notify-reminders/route.ts`.
 
 Las tareas y tareas recurrentes generan sus "ocurrencias" (instancias por
 fecha) de forma perezosa: al entrar al módulo de Tareas se llama a

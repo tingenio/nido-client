@@ -8,9 +8,15 @@ export const dynamic = "force-dynamic";
 const MAX_WINDOW_MS = 24 * 60 * 60 * 1000; // recordatorios de hasta 24h a futuro
 
 /**
- * Llamado periódicamente (Vercel Cron, ver vercel.json) para enviar la
- * notificación push de los recordatorios que están por cumplirse. Protegido
- * con CRON_SECRET para que no sea invocable públicamente.
+ * Llamado una vez al día (Vercel Cron, ver vercel.json — el plan gratuito
+ * de Vercel no permite crons más frecuentes) para enviar la notificación
+ * push de los recordatorios que vencen en las próximas 24h. Protegido con
+ * CRON_SECRET para que no sea invocable públicamente.
+ *
+ * Al correr una sola vez al día, `notifyBeforeMinutes` ya no se usa para
+ * calcular el momento exacto del aviso (rara vez coincidiría con la hora
+ * del cron) — en su lugar, cualquier recordatorio pendiente que venza
+ * dentro de la ventana de 24h se notifica en la corrida diaria.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -33,9 +39,6 @@ export async function GET(request: Request) {
 
   for (const reminderDoc of dueSoon.docs) {
     const reminder = reminderDoc.data() as Reminder;
-    const dueAtMs = reminder.dueAt.toDate().getTime();
-    const notifyAtMs = dueAtMs - reminder.notifyBeforeMinutes * 60_000;
-    if (notifyAtMs > now) continue; // aún no toca avisar
 
     const householdId = reminderDoc.ref.parent.parent?.id;
     if (!householdId) continue;
