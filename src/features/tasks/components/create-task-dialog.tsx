@@ -1,0 +1,229 @@
+"use client";
+
+import { format } from "date-fns";
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { MicButton } from "@/components/mic-button";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { createTask } from "@/features/tasks/actions";
+import { useHouseholdMembers } from "@/features/users/hooks/use-household-members";
+import { getIdToken } from "@/lib/auth/get-id-token";
+import type { TaskType, WeekDay } from "@/types";
+
+const weekDays: { value: WeekDay; label: string }[] = [
+  { value: 1, label: "Lun" },
+  { value: 2, label: "Mar" },
+  { value: 3, label: "Mié" },
+  { value: 4, label: "Jue" },
+  { value: 5, label: "Vie" },
+  { value: 6, label: "Sáb" },
+  { value: 0, label: "Dom" },
+];
+
+type CreateTaskDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) {
+  const { members } = useHouseholdMembers();
+  const [submitting, setSubmitting] = useState(false);
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
+  const [points, setPoints] = useState(5);
+  const [type, setType] = useState<TaskType>("once");
+  const [dueDate, setDueDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [days, setDays] = useState<Set<WeekDay>>(new Set());
+
+  function toggleDay(day: WeekDay) {
+    setDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(day)) next.delete(day);
+      else next.add(day);
+      return next;
+    });
+  }
+
+  function resetForm() {
+    setTitle("");
+    setDescription("");
+    setAssignedTo("");
+    setPoints(5);
+    setType("once");
+    setDueDate(format(new Date(), "yyyy-MM-dd"));
+    setDays(new Set());
+  }
+
+  async function handleSubmit() {
+    if (!title.trim() || !assignedTo) {
+      toast.error("Completa el título y a quién se la asignas");
+      return;
+    }
+    if (type === "recurring" && days.size === 0) {
+      toast.error("Selecciona al menos un día de la semana");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const idToken = await getIdToken();
+      await createTask({
+        idToken,
+        title: title.trim(),
+        description: description.trim() || undefined,
+        assignedTo,
+        points,
+        type,
+        dueDate: type === "once" ? dueDate : undefined,
+        recurrence: type === "recurring" ? { daysOfWeek: Array.from(days) } : undefined,
+      });
+      toast.success("Tarea creada");
+      resetForm();
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo crear la tarea");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nueva tarea</DialogTitle>
+          <DialogDescription>Asígnala a un integrante del hogar.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="task-title">Título</Label>
+              <MicButton
+                onResult={(text) =>
+                  setTitle((prev) => (prev ? `${prev} ${text}` : text))
+                }
+              />
+            </div>
+            <Input id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="task-description">Descripción (opcional)</Label>
+              <MicButton
+                onResult={(text) =>
+                  setDescription((prev) => (prev ? `${prev} ${text}` : text))
+                }
+              />
+            </div>
+            <Textarea
+              id="task-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Asignar a</Label>
+            <Select value={assignedTo} onValueChange={(v) => setAssignedTo(v ?? "")}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona un integrante" />
+              </SelectTrigger>
+              <SelectContent>
+                {members.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="task-points">Puntos</Label>
+            <Input
+              id="task-points"
+              type="number"
+              min={0}
+              value={points}
+              onChange={(e) => setPoints(Number(e.target.value))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Frecuencia</Label>
+            <Tabs value={type} onValueChange={(v) => setType(v as TaskType)}>
+              <TabsList className="w-full">
+                <TabsTrigger className="flex-1" value="once">
+                  Única
+                </TabsTrigger>
+                <TabsTrigger className="flex-1" value="recurring">
+                  Recurrente
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {type === "once" ? (
+            <div className="space-y-2">
+              <Label htmlFor="task-due">Fecha</Label>
+              <Input
+                id="task-due"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Días de la semana</Label>
+              <div className="flex flex-wrap gap-3">
+                {weekDays.map(({ value, label }) => (
+                  <label key={value} className="flex items-center gap-1.5 text-sm">
+                    <Checkbox
+                      checked={days.has(value)}
+                      onCheckedChange={() => toggleDay(value)}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>
+          <Button disabled={submitting} onClick={handleSubmit}>
+            Crear tarea
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

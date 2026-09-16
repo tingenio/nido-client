@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Roof -->
+  <path
+    d="M50 14 L86 48 L14 48 Z"
+    fill="currentColor"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linejoin="round"
+  />
+  <!-- Nest embrace -->
+  <path
+    d="M22 52 Q50 88 78 52"
+    stroke="currentColor"
+    stroke-width="7"
+    stroke-linecap="round"
+    fill="none"
+  />
+  <!-- Family dots -->
+  <circle cx="36" cy="58" r="5" fill="#7A9E7E" />
+  <circle cx="50" cy="62" r="5" fill="#7A9E7E" />
+  <circle cx="64" cy="58" r="5" fill="#7A9E7E" />
+</svg>

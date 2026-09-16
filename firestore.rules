@@ -1,0 +1,93 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function myHouseholdId() {
+      return userDoc(request.auth.uid).householdId;
+    }
+
+    function myRole() {
+      return userDoc(request.auth.uid).role;
+    }
+
+    function isHouseholdMember(householdId) {
+      return isSignedIn() && myHouseholdId() == householdId;
+    }
+
+    function isAdmin(householdId) {
+      return isHouseholdMember(householdId) && myRole() == 'admin';
+    }
+
+    // Los externos (ej. empleada doméstica) solo pueden ver/actualizar tareas.
+    function isExternal() {
+      return isSignedIn() && myRole() == 'external';
+    }
+
+    // --- users ---
+    // La creación y el cambio de rol/householdId se hacen exclusivamente
+    // desde el servidor con el Admin SDK (ver provisionUser), que ignora
+    // estas reglas. Aquí solo se controla lectura y auto-edición de perfil.
+    match /users/{uid} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == uid || myHouseholdId() == resource.data.householdId
+      );
+      allow update: if isSignedIn() && request.auth.uid == uid &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.householdId == resource.data.householdId &&
+        request.resource.data.points == resource.data.points;
+      allow create, delete: if false;
+    }
+
+    match /households/{householdId} {
+      allow read: if isHouseholdMember(householdId);
+      allow write: if false; // se crea junto con el primer usuario admin (server)
+
+      match /invitations/{invitationId} {
+        allow read, create, update, delete: if isAdmin(householdId);
+      }
+
+      match /tasks/{taskId} {
+        allow read: if isHouseholdMember(householdId);
+        allow create, update, delete: if isHouseholdMember(householdId) && !isExternal();
+      }
+
+      // Las ocurrencias se crean/actualizan a través de Server Actions
+      // (transacciones que también otorgan/restan puntos), por eso el
+      // cliente solo tiene lectura directa.
+      match /taskOccurrences/{occurrenceId} {
+        allow read: if isHouseholdMember(householdId);
+        allow write: if false;
+      }
+
+      match /reminders/{reminderId} {
+        allow read, create, update: if isHouseholdMember(householdId) && !isExternal();
+        allow delete: if isHouseholdMember(householdId) && !isExternal() &&
+          (resource.data.createdBy == request.auth.uid || isAdmin(householdId));
+      }
+
+      match /expenses/{expenseId} {
+        allow read: if isHouseholdMember(householdId) && !isExternal();
+        allow write: if false; // se crean vía Server Action (ajusta el saldo del fondo)
+      }
+
+      match /funds/{fundId} {
+        allow read: if isHouseholdMember(householdId) && !isExternal();
+        allow create, update, delete: if isAdmin(householdId);
+
+        match /movements/{movementId} {
+          allow read: if isHouseholdMember(householdId) && !isExternal();
+          allow write: if false; // se crean vía Server Action junto con el saldo
+        }
+      }
+    }
+  }
+}
