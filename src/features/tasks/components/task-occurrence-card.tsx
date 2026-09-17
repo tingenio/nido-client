@@ -3,39 +3,13 @@
 import { MessageSquare } from "lucide-react";
 import { useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserLabel } from "@/components/ui/user-avatar";
 import { TaskOccurrenceDetailDialog } from "@/features/tasks/components/task-occurrence-detail-dialog";
+import { assigneeEarnsPoints } from "@/features/tasks/lib/assignee-earns-points";
+import { taskStatusTheme } from "@/features/tasks/lib/task-status-theme";
 import { cn } from "@/lib/utils";
 import type { AppUser, TaskOccurrence } from "@/types";
-
-const statusLabel: Record<TaskOccurrence["status"], string> = {
-  pending: "Pendiente",
-  completed: "Por verificar",
-  verified: "Verificada",
-  rejected: "Rechazada",
-  overdue: "Vencida",
-};
-
-const statusVariant: Record<
-  TaskOccurrence["status"],
-  "outline" | "success" | "default" | "destructive" | "warning"
-> = {
-  pending: "outline",
-  completed: "success",
-  verified: "default",
-  rejected: "destructive",
-  overdue: "destructive",
-};
-
-const statusBorder: Record<TaskOccurrence["status"], string> = {
-  pending: "border-l-primary",
-  completed: "border-l-[var(--brand-sage)]",
-  verified: "border-l-primary/60",
-  rejected: "border-l-destructive",
-  overdue: "border-l-destructive",
-};
 
 export function TaskOccurrenceCard({
   occurrence,
@@ -51,13 +25,18 @@ export function TaskOccurrenceCard({
   const assignee = membersById[occurrence.assignedTo];
   const checklist = occurrence.checklist ?? [];
   const checkedCount = checklist.filter((item) => item.checked).length;
+  const theme = taskStatusTheme[occurrence.status];
+  const showPoints = assigneeEarnsPoints(assignee);
 
   return (
     <>
       <Card
         role="button"
         tabIndex={0}
-        className={cn("border-l-4 cursor-pointer transition-shadow hover:shadow-md", statusBorder[occurrence.status])}
+        className={cn(
+          "task-card cursor-pointer ring-1 ring-foreground/5",
+          theme.washClass,
+        )}
         onClick={() => setDetailOpen(true)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -67,22 +46,33 @@ export function TaskOccurrenceCard({
         }}
       >
         <CardContent className="space-y-3">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-medium leading-tight">{occurrence.title}</p>
-              <p className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
-                {assignee ? (
-                  <UserLabel name={assignee.name} photoURL={assignee.photoURL} size="sm" />
-                ) : (
-                  <span>—</span>
-                )}
-                <span>
-                  {hideDate ? `${occurrence.points} pts` : `· ${occurrence.date} · ${occurrence.points} pts`}
-                </span>
-              </p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn("task-status-dot size-1.5 shrink-0 rounded-full", theme.dotClass)}
+                  data-pulse={theme.pulse ? "true" : undefined}
+                  aria-hidden
+                />
+                <p className="truncate font-medium leading-tight">{occurrence.title}</p>
+              </div>
+              <p className={cn("pl-3.5 text-xs", theme.textClass)}>{theme.label}</p>
             </div>
-            <Badge variant={statusVariant[occurrence.status]}>{statusLabel[occurrence.status]}</Badge>
+            {showPoints && (
+              <span className="bg-muted/60 text-muted-foreground shrink-0 rounded-md px-2 py-0.5 text-xs tabular-nums">
+                {occurrence.points} pts
+              </span>
+            )}
           </div>
+
+          <p className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
+            {assignee ? (
+              <UserLabel name={assignee.name} photoURL={assignee.photoURL} size="sm" />
+            ) : (
+              <span>—</span>
+            )}
+            {!hideDate && <span>· {occurrence.date}</span>}
+          </p>
 
           {checklist.length > 0 && (
             <div className="space-y-1.5">
@@ -92,18 +82,23 @@ export function TaskOccurrenceCard({
                   {checkedCount}/{checklist.length}
                 </span>
               </div>
-              <div className="bg-muted h-1.5 overflow-hidden rounded-full">
-                <div
-                  className="bg-[var(--brand-sage)] h-full rounded-full transition-all duration-300"
-                  style={{ width: `${(checkedCount / checklist.length) * 100}%` }}
-                />
+              <div className="flex gap-0.5">
+                {checklist.map((item) => (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "h-1 flex-1 rounded-full transition-colors duration-300 ease-out",
+                      item.checked ? "bg-[var(--brand-sage)]" : "bg-muted",
+                    )}
+                  />
+                ))}
               </div>
             </div>
           )}
 
           {occurrence.reviewComment && (
-            <p className="bg-muted flex items-start gap-2 rounded-lg px-3 py-2 text-xs">
-              <MessageSquare className="text-muted-foreground mt-0.5 size-3.5 shrink-0" />
+            <p className="border-border text-muted-foreground flex items-start gap-2 border-l-2 py-0.5 pl-3 text-xs">
+              <MessageSquare className="mt-0.5 size-3.5 shrink-0 opacity-60" />
               <span className="line-clamp-2">{occurrence.reviewComment}</span>
             </p>
           )}

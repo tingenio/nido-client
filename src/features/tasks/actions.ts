@@ -61,6 +61,10 @@ export async function createTask(input: {
     throw new AuthError("Selecciona al menos un día de la semana.");
   }
 
+  const assigneeSnap = await adminDb().collection("users").doc(input.assignedTo).get();
+  const assigneeRole = assigneeSnap.exists ? (assigneeSnap.data() as AppUser).role : "member";
+  const points = assigneeRole === "external" ? 0 : input.points;
+
   const checklistItems = buildChecklistItems(input.checklistItems ?? []);
   const taskRef = householdTasks(requester.householdId).doc();
   await taskRef.set({
@@ -68,7 +72,7 @@ export async function createTask(input: {
     description: input.description ?? "",
     assignedTo: input.assignedTo,
     createdBy: requester.id,
-    points: input.points,
+    points,
     type: input.type,
     ...(input.type === "once"
       ? { dueDate: new Date(`${input.dueDate}T00:00:00`) }
@@ -91,7 +95,7 @@ export async function createTask(input: {
           taskRef.id,
           input.title,
           input.assignedTo,
-          input.points,
+          points,
           input.dueDate,
           occurrenceExtras,
         ),
@@ -102,7 +106,7 @@ export async function createTask(input: {
       taskRef.id,
       input.title,
       input.assignedTo,
-      input.points,
+      points,
       input.recurrence,
       occurrenceExtras,
     );
@@ -113,7 +117,7 @@ export async function createTask(input: {
     const { subject, html } = taskCreatedTemplate({
       taskTitle: input.title,
       description: input.description,
-      points: input.points,
+      points,
       dueDate: input.dueDate,
       assignedByName: requester.name,
     });
@@ -293,7 +297,7 @@ export async function verifyOccurrence(input: {
   requireNotExternal(requester);
   const ref = householdOccurrences(requester.householdId).doc(input.occurrenceId);
   const userRef = adminDb().collection("users");
-  let verified: { title: string; points: number; completedBy: string } | null = null;
+  let verified: { title: string; points: number; assignedTo: string } | null = null;
 
   await adminDb().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -307,10 +311,10 @@ export async function verifyOccurrence(input: {
       throw new AuthError("Otra persona debe verificar esta tarea.");
     }
 
-    const authorRef = userRef.doc(data.completedBy!);
-    const authorSnap = await tx.get(authorRef);
-    const authorRole = authorSnap.exists ? (authorSnap.data() as AppUser).role : "member";
-    const pointsToAward = authorRole === "external" ? 0 : data.points;
+    const assigneeRef = userRef.doc(data.assignedTo);
+    const assigneeSnap = await tx.get(assigneeRef);
+    const assigneeRole = assigneeSnap.exists ? (assigneeSnap.data() as AppUser).role : "member";
+    const pointsToAward = assigneeRole === "external" ? 0 : data.points;
 
     tx.update(ref, {
       status: "verified",
@@ -320,14 +324,14 @@ export async function verifyOccurrence(input: {
       ...(input.comment ? { reviewComment: input.comment } : {}),
     });
     if (pointsToAward > 0) {
-      tx.update(authorRef, { points: FieldValue.increment(pointsToAward) });
+      tx.update(assigneeRef, { points: FieldValue.increment(pointsToAward) });
     }
-    verified = { title: data.title, points: pointsToAward, completedBy: data.completedBy! };
+    verified = { title: data.title, points: pointsToAward, assignedTo: data.assignedTo };
   });
 
   if (verified) {
-    const { title, points, completedBy } = verified as { title: string; points: number; completedBy: string };
-    const email = await getUserEmail(completedBy);
+    const { title, points, assignedTo } = verified as { title: string; points: number; assignedTo: string };
+    const email = await getUserEmail(assignedTo);
     if (email) {
       const { subject, html } = taskVerifiedTemplate({
         taskTitle: title,
@@ -351,7 +355,7 @@ export async function rejectOccurrence(input: {
   const ref = householdOccurrences(requester.householdId).doc(input.occurrenceId);
   const userRef = adminDb().collection("users");
   const penalty = Math.max(0, input.penalty ?? 0);
-  let rejected: { title: string; completedBy?: string } | null = null;
+  let rejected: { title: string; assignedTo: string } | null = null;
 
   await adminDb().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -377,20 +381,20 @@ export async function rejectOccurrence(input: {
       ...(resetChecklist?.length ? { checklist: resetChecklist } : {}),
     });
 
-    if (penalty > 0 && data.completedBy) {
-      const completerRef = userRef.doc(data.completedBy);
-      const completerSnap = await tx.get(completerRef);
-      const completerRole = completerSnap.exists ? (completerSnap.data() as AppUser).role : "member";
-      if (completerRole !== "external") {
-        tx.update(completerRef, { points: FieldValue.increment(-penalty) });
+    if (penalty > 0) {
+      const assigneeRef = userRef.doc(data.assignedTo);
+      const assigneeSnap = await tx.get(assigneeRef);
+      const assigneeRole = assigneeSnap.exists ? (assigneeSnap.data() as AppUser).role : "member";
+      if (assigneeRole !== "external") {
+        tx.update(assigneeRef, { points: FieldValue.increment(-penalty) });
       }
     }
-    rejected = { title: data.title, completedBy: data.completedBy };
+    rejected = { title: data.title, assignedTo: data.assignedTo };
   });
 
   if (rejected) {
-    const { title, completedBy } = rejected as { title: string; completedBy?: string };
-    const email = completedBy ? await getUserEmail(completedBy) : undefined;
+    const { title, assignedTo } = rejected as { title: string; assignedTo: string };
+    const email = await getUserEmail(assignedTo);
     if (email) {
       const { subject, html } = taskRejectedTemplate({
         taskTitle: title,
@@ -447,10 +451,9 @@ export async function deleteOccurrence(input: {
     if (
       data.status === "verified" &&
       data.pointsAwarded &&
-      data.pointsAwarded > 0 &&
-      data.completedBy
+      data.pointsAwarded > 0
     ) {
-      tx.update(userRef.doc(data.completedBy), {
+      tx.update(userRef.doc(data.assignedTo), {
         points: FieldValue.increment(-data.pointsAwarded),
       });
     }

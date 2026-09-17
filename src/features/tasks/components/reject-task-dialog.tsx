@@ -22,11 +22,13 @@ export function RejectTaskDialog({
   onOpenChange,
   onConfirm,
   submitting,
+  showPenalty = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (comment: string, penalty: number) => void;
   submitting: boolean;
+  showPenalty?: boolean;
 }) {
   const [comment, setComment] = useState("");
   const [penalty, setPenalty] = useState(0);
@@ -52,16 +54,18 @@ export function RejectTaskDialog({
                 placeholder="Ej: faltó limpiar debajo de la mesa"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="penalty">Puntos a restar (opcional)</Label>
-              <Input
-                id="penalty"
-                type="number"
-                min={0}
-                value={penalty}
-                onChange={(e) => setPenalty(Number(e.target.value))}
-              />
-            </div>
+            {showPenalty && (
+              <div className="space-y-2">
+                <Label htmlFor="penalty">Puntos a restar (opcional)</Label>
+                <Input
+                  id="penalty"
+                  type="number"
+                  min={0}
+                  value={penalty}
+                  onChange={(e) => setPenalty(Number(e.target.value))}
+                />
+              </div>
+            )}
           </div>
         </DialogBody>
 
@@ -69,7 +73,7 @@ export function RejectTaskDialog({
           <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>
           <Button
             disabled={submitting || comment.trim().length === 0}
-            onClick={() => onConfirm(comment.trim(), penalty)}
+            onClick={() => onConfirm(comment.trim(), showPenalty ? penalty : 0)}
           >
             Devolver tarea
           </Button>

@@ -31,6 +31,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { createTask } from "@/features/tasks/actions";
+import { assigneeEarnsPoints } from "@/features/tasks/lib/assignee-earns-points";
 import { useHouseholdMembers } from "@/features/users/hooks/use-household-members";
 import { getIdToken } from "@/lib/auth/get-id-token";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,9 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
   const [dueDate, setDueDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [days, setDays] = useState<Set<WeekDay>>(new Set());
   const [checklistSteps, setChecklistSteps] = useState<string[]>([""]);
+
+  const selectedAssignee = members.find((m) => m.id === assignedTo);
+  const showPoints = assigneeEarnsPoints(selectedAssignee);
 
   function toggleDay(day: WeekDay) {
     setDays((prev) => {
@@ -116,7 +120,7 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
         title: title.trim(),
         description: description.trim() || undefined,
         assignedTo,
-        points,
+        points: showPoints ? points : 0,
         type,
         dueDate: type === "once" ? dueDate : undefined,
         recurrence: type === "recurring" ? { daysOfWeek: Array.from(days) } : undefined,
@@ -206,16 +210,18 @@ export function CreateTaskDialog({ open, onOpenChange }: CreateTaskDialogProps) 
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="task-points">Puntos</Label>
-            <Input
-              id="task-points"
-              type="number"
-              min={0}
-              value={points}
-              onChange={(e) => setPoints(Number(e.target.value))}
-            />
-          </div>
+          {showPoints && (
+            <div className="space-y-2">
+              <Label htmlFor="task-points">Puntos</Label>
+              <Input
+                id="task-points"
+                type="number"
+                min={0}
+                value={points}
+                onChange={(e) => setPoints(Number(e.target.value))}
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Frecuencia</Label>

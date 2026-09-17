@@ -19,6 +19,7 @@ import {
 import { DeleteTaskDialog } from "@/features/tasks/components/delete-task-dialog";
 import { RejectTaskDialog } from "@/features/tasks/components/reject-task-dialog";
 import { useTaskMeta } from "@/features/tasks/hooks/use-task-meta";
+import { assigneeEarnsPoints } from "@/features/tasks/lib/assignee-earns-points";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { getIdToken } from "@/lib/auth/get-id-token";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,7 @@ export function TaskOccurrenceDetailDialog({
   if (!appUser) return null;
 
   const assignee = membersById[occurrence.assignedTo];
+  const showPoints = assigneeEarnsPoints(assignee);
   const checklist = occurrence.checklist ?? [];
   const checkedCount = checklist.filter((item) => item.checked).length;
   const allChecked = checklist.length === 0 || checkedCount === checklist.length;
@@ -117,7 +119,11 @@ export function TaskOccurrenceDetailDialog({
     try {
       const idToken = await getIdToken();
       await verifyOccurrence({ idToken, occurrenceId: occurrence.id });
-      toast.success(`Verificada · +${occurrence.points} pts para ${assignee?.name ?? "el integrante"}`);
+      toast.success(
+        showPoints
+          ? `Verificada · +${occurrence.points} pts para ${assignee?.name ?? "el integrante"}`
+          : "Verificada",
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo verificar");
     } finally {
@@ -146,13 +152,14 @@ export function TaskOccurrenceDetailDialog({
       await deleteOccurrence({ idToken, occurrenceId: occurrence.id, mode });
       const verified = occurrence.status === "verified";
       const points = occurrence.pointsAwarded ?? occurrence.points;
+      const reversedPoints = verified && showPoints && points > 0;
       if (mode === "series") {
         toast.success(
-          verified
+          reversedPoints
             ? `Tarea eliminada · ya no se repetirá · se restaron ${points} pts`
             : "Tarea eliminada · ya no se repetirá",
         );
-      } else if (verified) {
+      } else if (reversedPoints) {
         toast.success(`Tarea eliminada · se restaron ${points} pts`);
       } else {
         toast.success("Tarea eliminada");
@@ -227,7 +234,7 @@ export function TaskOccurrenceDetailDialog({
             )}
             <p className="flex items-center gap-2">
               <Calendar className="size-4 shrink-0" />
-              {occurrence.date} · {occurrence.points} pts
+              {showPoints ? `${occurrence.date} · ${occurrence.points} pts` : occurrence.date}
             </p>
           </div>
 
@@ -292,6 +299,7 @@ export function TaskOccurrenceDetailDialog({
         onOpenChange={setRejectOpen}
         onConfirm={handleReject}
         submitting={busy}
+        showPenalty={showPoints}
       />
 
       <DeleteTaskDialog
@@ -300,6 +308,7 @@ export function TaskOccurrenceDetailDialog({
         occurrence={occurrence}
         taskType={task?.type ?? null}
         assigneeName={assignee?.name}
+        assigneeEarnsPoints={showPoints}
         loading={busy}
         onConfirm={handleDelete}
       />

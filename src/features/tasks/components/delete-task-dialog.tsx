@@ -25,6 +25,7 @@ type DeleteTaskDialogProps = {
   occurrence: TaskOccurrence;
   taskType: TaskType | null;
   assigneeName?: string;
+  assigneeEarnsPoints?: boolean;
   loading?: boolean;
   onConfirm: (mode: DeleteMode) => void | Promise<void>;
 };
@@ -35,6 +36,7 @@ export function DeleteTaskDialog({
   occurrence,
   taskType,
   assigneeName,
+  assigneeEarnsPoints = true,
   loading,
   onConfirm,
 }: DeleteTaskDialogProps) {
@@ -49,7 +51,7 @@ export function DeleteTaskDialog({
   const pointsToReverse = verified ? (occurrence.pointsAwarded ?? occurrence.points) : 0;
 
   let description = `Se borrará "${occurrence.title}" del hogar. Esta acción no se puede deshacer.`;
-  if (verified && pointsToReverse > 0) {
+  if (verified && pointsToReverse > 0 && assigneeEarnsPoints) {
     description = `Se borrará "${occurrence.title}" y se restarán ${pointsToReverse} pts de ${assigneeName ?? "quien los recibió"}. Esta acción no se puede deshacer.`;
   }
 

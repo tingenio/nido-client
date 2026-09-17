@@ -92,7 +92,7 @@ export function taskCreatedTemplate(input: {
   const title = escapeHtml(input.taskTitle);
   const rows = [
     { label: "Tarea", value: title },
-    { label: "Puntos", value: `+${input.points} pts` },
+    ...(input.points > 0 ? [{ label: "Puntos", value: `+${input.points} pts` }] : []),
     ...(input.dueDate ? [{ label: "Fecha límite", value: input.dueDate }] : []),
     ...(input.assignedByName ? [{ label: "Asignada por", value: escapeHtml(input.assignedByName) }] : []),
   ];
@@ -103,10 +103,16 @@ export function taskCreatedTemplate(input: {
     (input.description ? emailHighlightBox(escapeHtml(input.description)) : "");
 
   return {
-    subject: `[Nido] Nueva tarea: "${input.taskTitle}" (+${input.points} pts)`,
+    subject:
+      input.points > 0
+        ? `[Nido] Nueva tarea: "${input.taskTitle}" (+${input.points} pts)`
+        : `[Nido] Nueva tarea: "${input.taskTitle}"`,
     html: renderEmailLayout({
       title: input.taskTitle,
-      preheader: `Gana ${input.points} puntos al completarla`,
+      preheader:
+        input.points > 0
+          ? `Gana ${input.points} puntos al completarla`
+          : `Tienes una nueva tarea por completar`,
       badge: "Nueva tarea",
       accent: "primary",
       bodyHtml: body,
@@ -154,20 +160,30 @@ export function taskVerifiedTemplate(input: {
   const title = escapeHtml(input.taskTitle);
   const rows = [
     { label: "Tarea", value: title },
-    { label: "Puntos ganados", value: `+${input.points} pts` },
+    ...(input.points > 0 ? [{ label: "Puntos ganados", value: `+${input.points} pts` }] : []),
     ...(input.reviewedByName ? [{ label: "Verificada por", value: escapeHtml(input.reviewedByName) }] : []),
   ];
 
   const body =
-    emailParagraph(`¡Buen trabajo! Tu tarea fue verificada y sumaste puntos.`) +
+    emailParagraph(
+      input.points > 0
+        ? `¡Buen trabajo! Tu tarea fue verificada y sumaste puntos.`
+        : `¡Buen trabajo! Tu tarea fue verificada.`,
+    ) +
     emailDetailsTable(rows) +
     (input.comment ? emailHighlightBox(`Comentario: ${escapeHtml(input.comment)}`, "sage") : "");
 
   return {
-    subject: `[Nido] ¡Aprobada! +${input.points} pts por "${input.taskTitle}"`,
+    subject:
+      input.points > 0
+        ? `[Nido] ¡Aprobada! +${input.points} pts por "${input.taskTitle}"`
+        : `[Nido] Tarea verificada: "${input.taskTitle}"`,
     html: renderEmailLayout({
       title: "Tarea verificada",
-      preheader: `Ganaste ${input.points} puntos por "${input.taskTitle}"`,
+      preheader:
+        input.points > 0
+          ? `Ganaste ${input.points} puntos por "${input.taskTitle}"`
+          : `Tu tarea "${input.taskTitle}" fue verificada`,
       badge: "Tarea aprobada",
       accent: "sage",
       bodyHtml: body,
