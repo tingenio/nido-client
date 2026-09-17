@@ -89,6 +89,15 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      match /notes/{noteId} {
+        allow read, create, update, delete: if isHouseholdMember(householdId) && !isExternal();
+      }
+
+      match /lunchMenu/{weekday} {
+        allow read: if isHouseholdMember(householdId);
+        allow create, update, delete: if isHouseholdMember(householdId) && !isExternal();
+      }
+
       match /funds/{fundId} {
         allow read: if isHouseholdMember(householdId) && !isExternal();
         allow create, update, delete: if isAdmin(householdId);

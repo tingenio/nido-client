@@ -12,8 +12,10 @@ import { auth } from "@/lib/firebase/client";
 
 const routeTitles: Record<string, string> = {
   "/tasks": "Tareas",
+  "/lunch-menu": "Menú de almuerzos",
   "/reminders": "Recordatorios",
   "/expenses": "Gastos",
+  "/notes": "Notas",
   "/profile": "Perfil",
 };
 
