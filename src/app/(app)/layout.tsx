@@ -13,7 +13,10 @@ function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-gradient-bg flex min-h-dvh flex-col">
       <AppHeader />
-      <main className="mx-auto w-full max-w-md flex-1 px-4 py-4 pb-28">
+      <main
+        className="mx-auto w-full max-w-md flex-1 px-4 py-4"
+        style={{ paddingBottom: "var(--app-main-padding-bottom)" }}
+      >
         <PageTransition>{children}</PageTransition>
       </main>
       <BottomNav role={appUser.role} />

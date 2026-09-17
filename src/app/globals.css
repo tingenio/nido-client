@@ -88,6 +88,7 @@
   --sidebar-accent-foreground: oklch(0.28 0.04 145);
   --sidebar-border: oklch(0.90 0.01 85);
   --sidebar-ring: oklch(0.66 0.12 35);
+  --app-main-padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px) + 1.5rem);
 }
 
 .dark {

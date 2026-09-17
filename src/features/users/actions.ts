@@ -193,3 +193,94 @@ export async function createMember(input: {
     throw error;
   }
 }
+
+export async function adminUpdateMember(input: {
+  idToken: string;
+  memberId: string;
+  name?: string;
+  role?: UserRole;
+  photoURL?: string | null;
+  password?: string;
+}) {
+  const requester = await requireAppUser(input.idToken);
+  requireAdmin(requester);
+
+  if (input.memberId === requester.id) {
+    throw new AuthError("Usa Editar perfil para modificar tu propia cuenta.");
+  }
+
+  const memberRef = adminDb().collection("users").doc(input.memberId);
+  const memberSnap = await memberRef.get();
+  if (!memberSnap.exists) {
+    throw new AuthError("Integrante no encontrado.");
+  }
+
+  const member = memberSnap.data() as Omit<AppUser, "id">;
+  if (member.householdId !== requester.householdId) {
+    throw new AuthError("No tienes permiso para editar este integrante.");
+  }
+
+  const firestoreUpdates: { name?: string; role?: UserRole; photoURL?: string | null } = {};
+  const authUpdates: { displayName?: string; photoURL?: string; password?: string } = {};
+
+  if (input.name !== undefined) {
+    const name = input.name.trim();
+    if (name.length < 2) throw new AuthError("El nombre debe tener al menos 2 caracteres.");
+    firestoreUpdates.name = name;
+    authUpdates.displayName = name;
+  }
+
+  if (input.role !== undefined) {
+    if (!VALID_ROLES.includes(input.role)) throw new AuthError("Rol inválido.");
+
+    if (member.role === "admin" && input.role !== "admin") {
+      const admins = await adminDb()
+        .collection("users")
+        .where("householdId", "==", requester.householdId)
+        .where("role", "==", "admin")
+        .get();
+      if (admins.size <= 1) {
+        throw new AuthError("Debe quedar al menos un administrador en el hogar.");
+      }
+    }
+
+    firestoreUpdates.role = input.role;
+  }
+
+  const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+  if (input.photoURL !== undefined) {
+    if (input.photoURL && !isValidPhotoURL(input.photoURL, input.memberId, storageBucket)) {
+      throw new AuthError("Foto de perfil inválida.");
+    }
+    firestoreUpdates.photoURL = input.photoURL;
+    if (input.photoURL && !input.photoURL.startsWith("data:")) {
+      authUpdates.photoURL = input.photoURL;
+    }
+  }
+
+  if (input.password !== undefined) {
+    if (input.password.length > 0 && input.password.length < 6) {
+      throw new AuthError("La contraseña debe tener al menos 6 caracteres.");
+    }
+    if (input.password.length >= 6) {
+      authUpdates.password = input.password;
+    }
+  }
+
+  if (
+    firestoreUpdates.name === undefined &&
+    firestoreUpdates.role === undefined &&
+    firestoreUpdates.photoURL === undefined &&
+    authUpdates.password === undefined
+  ) {
+    throw new AuthError("No hay cambios para guardar.");
+  }
+
+  if (Object.keys(firestoreUpdates).length > 0) {
+    await memberRef.update(firestoreUpdates);
+  }
+
+  if (Object.keys(authUpdates).length > 0) {
+    await adminAuth().updateUser(input.memberId, authUpdates);
+  }
+}

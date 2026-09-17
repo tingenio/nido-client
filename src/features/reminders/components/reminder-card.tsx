@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReminderDetailDialog } from "@/features/reminders/components/reminder-detail-dialog";
 import { useReminderActions } from "@/features/reminders/hooks/use-reminder-actions";
+import { formatAppDateTimeMedium } from "@/lib/format/datetime";
 import { cn } from "@/lib/utils";
 import type { Reminder } from "@/types";
 
@@ -60,7 +61,7 @@ export function ReminderCard({ reminder }: { reminder: Reminder }) {
             )}
             <p className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
               <Clock className="size-3 shrink-0" />
-              {dueDate.toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })} · aviso{" "}
+              {formatAppDateTimeMedium(dueDate)} · aviso{" "}
               {reminder.notifyBeforeMinutes} min antes
             </p>
           </div>

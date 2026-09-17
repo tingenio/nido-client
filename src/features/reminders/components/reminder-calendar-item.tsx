@@ -1,11 +1,11 @@
 "use client";
 
-import { format } from "date-fns";
 import { useState } from "react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReminderDetailDialog } from "@/features/reminders/components/reminder-detail-dialog";
 import { useReminderActions } from "@/features/reminders/hooks/use-reminder-actions";
+import { formatAppTime } from "@/lib/format/datetime";
 import { cn } from "@/lib/utils";
 import type { Reminder } from "@/types";
 
@@ -38,7 +38,7 @@ export function ReminderCalendarItem({ reminder }: { reminder: Reminder }) {
           onCheckedChange={(checked) => toggleDone(Boolean(checked))}
         />
         <span className="text-muted-foreground w-11 shrink-0 text-xs tabular-nums">
-          {format(dueDate, "HH:mm")}
+          {formatAppTime(dueDate)}
         </span>
         <span
           className={cn(

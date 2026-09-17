@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/email/send";
 import { taskCreatedTemplate, taskPendingReviewTemplate, taskRejectedTemplate, taskVerifiedTemplate } from "@/lib/email/templates";
 import { getHouseholdAdminEmails, getUserEmail } from "@/lib/email/recipients";
 import type {
+  AppUser,
   Task,
   TaskChecklistItem,
   TaskOccurrence,
@@ -307,15 +308,21 @@ export async function verifyOccurrence(input: {
     }
 
     const authorRef = userRef.doc(data.completedBy!);
+    const authorSnap = await tx.get(authorRef);
+    const authorRole = authorSnap.exists ? (authorSnap.data() as AppUser).role : "member";
+    const pointsToAward = authorRole === "external" ? 0 : data.points;
+
     tx.update(ref, {
       status: "verified",
       reviewedBy: requester.id,
       reviewedAt: FieldValue.serverTimestamp(),
-      pointsAwarded: data.points,
+      pointsAwarded: pointsToAward,
       ...(input.comment ? { reviewComment: input.comment } : {}),
     });
-    tx.update(authorRef, { points: FieldValue.increment(data.points) });
-    verified = { title: data.title, points: data.points, completedBy: data.completedBy! };
+    if (pointsToAward > 0) {
+      tx.update(authorRef, { points: FieldValue.increment(pointsToAward) });
+    }
+    verified = { title: data.title, points: pointsToAward, completedBy: data.completedBy! };
   });
 
   if (verified) {
@@ -371,7 +378,12 @@ export async function rejectOccurrence(input: {
     });
 
     if (penalty > 0 && data.completedBy) {
-      tx.update(userRef.doc(data.completedBy), { points: FieldValue.increment(-penalty) });
+      const completerRef = userRef.doc(data.completedBy);
+      const completerSnap = await tx.get(completerRef);
+      const completerRole = completerSnap.exists ? (completerSnap.data() as AppUser).role : "member";
+      if (completerRole !== "external") {
+        tx.update(completerRef, { points: FieldValue.increment(-penalty) });
+      }
     }
     rejected = { title: data.title, completedBy: data.completedBy };
   });

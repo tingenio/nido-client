@@ -10,16 +10,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnablePushButton } from "@/features/notifications/components/enable-push-button";
 import { EditProfileDialog } from "@/features/users/components/edit-profile-dialog";
+import { EditMemberDialog } from "@/features/users/components/edit-member-dialog";
+import { HouseholdExternalMembers } from "@/features/users/components/household-external-members";
 import { HouseholdRanking } from "@/features/users/components/household-ranking";
 import { AddMemberDialog } from "@/features/users/components/add-member-dialog";
 import { useHouseholdMembers } from "@/features/users/hooks/use-household-members";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { ROLE_LABELS } from "@/lib/labels";
+import type { AppUser } from "@/types";
 
 export default function ProfilePage() {
   const { appUser } = useAuth();
   const { members, loading } = useHouseholdMembers();
   const [editOpen, setEditOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<AppUser | null>(null);
+
+  const rankingMembers = members.filter((m) => m.role !== "external");
+  const externalMembers = members.filter((m) => m.role === "external");
+  const isAdmin = appUser?.role === "admin";
 
   return (
     <div className="space-y-6">
@@ -35,7 +43,8 @@ export default function ProfilePage() {
           <div>
             <p className="text-lg font-semibold">{appUser?.name}</p>
             <p className="text-muted-foreground text-sm">
-              {appUser && ROLE_LABELS[appUser.role]} · {appUser?.points ?? 0} pts
+              {appUser && ROLE_LABELS[appUser.role]}
+              {appUser?.role !== "external" && <> · {appUser?.points ?? 0} pts</>}
             </p>
           </div>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditOpen(true)}>
@@ -59,9 +68,27 @@ export default function ProfilePage() {
       </div>
 
       <HouseholdRanking
-        members={members}
+        members={rankingMembers}
         currentUserId={appUser?.id}
         loading={loading}
+        canManage={isAdmin}
+        onEditMember={isAdmin ? setEditingMember : undefined}
+      />
+
+      <HouseholdExternalMembers
+        members={externalMembers}
+        currentUserId={appUser?.id}
+        loading={loading}
+        canManage={isAdmin}
+        onEditMember={isAdmin ? setEditingMember : undefined}
+      />
+
+      <EditMemberDialog
+        open={editingMember !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingMember(null);
+        }}
+        member={editingMember}
       />
     </div>
   );

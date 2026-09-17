@@ -4,6 +4,7 @@ import { format, isSameDay } from "date-fns";
 
 import { ReminderCalendarItem } from "@/features/reminders/components/reminder-calendar-item";
 import { getRemindersForDay } from "@/features/reminders/utils/calendar";
+import { getAppHoursAndMinutes } from "@/lib/format/datetime";
 import type { Reminder } from "@/types";
 
 const HOUR_START = 6;
@@ -25,7 +26,7 @@ export function CalendarDayView({ anchorDate, reminders }: CalendarDayViewProps)
 
   for (const reminder of dayReminders) {
     const due = reminder.dueAt.toDate();
-    const hour = due.getHours();
+    const { hour } = getAppHoursAndMinutes(due);
     if (hour < HOUR_START || hour >= HOUR_END) {
       allDay.push(reminder);
       continue;

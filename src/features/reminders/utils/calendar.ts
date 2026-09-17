@@ -18,6 +18,7 @@ import {
 } from "date-fns";
 import { es } from "date-fns/locale";
 
+import { isSameAppDay, toAppDayKey } from "@/lib/format/datetime";
 import type { Reminder } from "@/types";
 
 export type CalendarView = "day" | "week" | "month";
@@ -25,7 +26,7 @@ export type CalendarView = "day" | "week" | "month";
 export const WEEKDAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 export function toDayKey(date: Date): string {
-  return format(date, "yyyy-MM-dd");
+  return toAppDayKey(date);
 }
 
 export function groupRemindersByDay(reminders: Reminder[]): Map<string, Reminder[]> {
@@ -78,7 +79,7 @@ export function navigatePeriod(date: Date, view: CalendarView, direction: 1 | -1
 }
 
 export function getRemindersForDay(reminders: Reminder[], day: Date): Reminder[] {
-  return reminders.filter((r) => isSameDay(r.dueAt.toDate(), day));
+  return reminders.filter((r) => isSameAppDay(r.dueAt.toDate(), day));
 }
 
 export function isCurrentMonth(day: Date, anchorDate: Date): boolean {

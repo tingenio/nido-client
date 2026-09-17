@@ -17,27 +17,41 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { updateReminder } from "@/features/reminders/actions";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { getIdToken } from "@/lib/auth/get-id-token";
-import { createReminder } from "@/features/reminders/actions";
 import {
+  dateToDatetimeLocal,
   datetimeLocalToISO,
   formatDatetimeLocalPreview,
   minDatetimeLocalValue,
 } from "@/lib/format/datetime";
+import type { Reminder } from "@/types";
 
-type CreateReminderDialogProps = {
+type EditReminderDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  reminder: Reminder;
 };
 
-export function CreateReminderDialog({ open, onOpenChange }: CreateReminderDialogProps) {
+export function EditReminderDialog({ open, onOpenChange, reminder }: EditReminderDialogProps) {
   const { appUser } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueAt, setDueAt] = useState("");
   const [notifyBefore, setNotifyBefore] = useState(30);
+  const [prevOpen, setPrevOpen] = useState(false);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setTitle(reminder.title);
+      setDescription(reminder.description ?? "");
+      setDueAt(dateToDatetimeLocal(reminder.dueAt.toDate()));
+      setNotifyBefore(reminder.notifyBeforeMinutes);
+    }
+  }
 
   async function handleSubmit() {
     if (!appUser) return;
@@ -62,21 +76,18 @@ export function CreateReminderDialog({ open, onOpenChange }: CreateReminderDialo
     setSubmitting(true);
     try {
       const idToken = await getIdToken();
-      await createReminder({
+      await updateReminder({
         idToken,
+        reminderId: reminder.id,
         title: title.trim(),
         description: description.trim() || undefined,
         dueAt: dueAtISO,
         notifyBeforeMinutes: notifyBefore,
       });
-      toast.success("Recordatorio creado");
-      setTitle("");
-      setDescription("");
-      setDueAt("");
-      setNotifyBefore(30);
+      toast.success("Recordatorio actualizado");
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo crear");
+      toast.error(error instanceof Error ? error.message : "No se pudo actualizar");
     } finally {
       setSubmitting(false);
     }
@@ -86,28 +97,32 @@ export function CreateReminderDialog({ open, onOpenChange }: CreateReminderDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nuevo recordatorio</DialogTitle>
-          <DialogDescription>Visible para todo el hogar.</DialogDescription>
+          <DialogTitle>Editar recordatorio</DialogTitle>
+          <DialogDescription>Actualiza los datos del aviso.</DialogDescription>
         </DialogHeader>
 
         <DialogBody>
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="reminder-title">Título</Label>
-              <Input id="reminder-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+              <Label htmlFor="edit-reminder-title">Título</Label>
+              <Input
+                id="edit-reminder-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="reminder-description">Descripción (opcional)</Label>
+              <Label htmlFor="edit-reminder-description">Descripción (opcional)</Label>
               <Textarea
-                id="reminder-description"
+                id="edit-reminder-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="reminder-due">Fecha y hora</Label>
+              <Label htmlFor="edit-reminder-due">Fecha y hora</Label>
               <Input
-                id="reminder-due"
+                id="edit-reminder-due"
                 type="datetime-local"
                 min={minDatetimeLocalValue()}
                 value={dueAt}
@@ -120,9 +135,9 @@ export function CreateReminderDialog({ open, onOpenChange }: CreateReminderDialo
               ) : null}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="reminder-notify">Avisar con anticipación (minutos)</Label>
+              <Label htmlFor="edit-reminder-notify">Avisar con anticipación (minutos)</Label>
               <Input
-                id="reminder-notify"
+                id="edit-reminder-notify"
                 type="number"
                 min={0}
                 value={notifyBefore}
@@ -135,7 +150,7 @@ export function CreateReminderDialog({ open, onOpenChange }: CreateReminderDialo
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>
           <Button disabled={submitting} onClick={handleSubmit}>
-            Crear
+            Guardar
           </Button>
         </DialogFooter>
       </DialogContent>

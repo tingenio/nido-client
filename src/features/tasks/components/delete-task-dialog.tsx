@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -61,51 +62,53 @@ export function DeleteTaskDialog({
         </DialogHeader>
 
         {isRecurring && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Esta tarea se repite. ¿Qué deseas hacer?</p>
-            <div className="space-y-2">
-              <label
-                className={cn(
-                  "flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-                  mode === "occurrence" && "border-primary bg-primary/5",
-                )}
-              >
-                <input
-                  type="radio"
-                  name="delete-mode"
-                  checked={mode === "occurrence"}
-                  onChange={() => setMode("occurrence")}
-                  className="mt-0.5"
-                />
-                <span>
-                  <span className="font-medium">Solo esta vez</span>
-                  <span className="text-muted-foreground block text-xs">
-                    Elimina la tarea del {occurrence.date}. Las demás fechas siguen igual.
+          <DialogBody className="pt-2">
+            <div className="space-y-4">
+              <p className="text-sm font-medium">Esta tarea se repite. ¿Qué deseas hacer?</p>
+              <div className="space-y-3">
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3.5 text-sm transition-colors",
+                    mode === "occurrence" && "border-primary bg-primary/5",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="delete-mode"
+                    checked={mode === "occurrence"}
+                    onChange={() => setMode("occurrence")}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="font-medium">Solo esta vez</span>
+                    <span className="text-muted-foreground mt-1 block text-xs">
+                      Elimina la tarea del {occurrence.date}. Las demás fechas siguen igual.
+                    </span>
                   </span>
-                </span>
-              </label>
-              <label
-                className={cn(
-                  "flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors",
-                  mode === "series" && "border-primary bg-primary/5",
-                )}
-              >
-                <input
-                  type="radio"
-                  name="delete-mode"
-                  checked={mode === "series"}
-                  onChange={() => setMode("series")}
-                  className="mt-0.5"
-                />
-                <span>
-                  <span className="font-medium">Dejar de repetir</span>
-                  <span className="text-muted-foreground block text-xs">
-                    Elimina esta instancia y cancela las repeticiones futuras.
+                </label>
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3.5 text-sm transition-colors",
+                    mode === "series" && "border-primary bg-primary/5",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="delete-mode"
+                    checked={mode === "series"}
+                    onChange={() => setMode("series")}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="font-medium">Dejar de repetir</span>
+                    <span className="text-muted-foreground mt-1 block text-xs">
+                      Elimina esta instancia y cancela las repeticiones futuras.
+                    </span>
                   </span>
-                </span>
-              </label>
+                </label>
+              </div>
             </div>
-          </div>
+          </DialogBody>
         )}
 
         <DialogFooter>
